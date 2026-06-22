@@ -1,0 +1,366 @@
+{
+  "info": {
+    "name": "Bolsi API",
+    "description": "Colección completa para probar el backend de Bolsi - Gestión Financiera Personal",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3000", "type": "string" },
+    { "key": "token",    "value": "",                      "type": "string" },
+    { "key": "user_id",  "value": "a1b2c3d4-0000-0000-0000-000000000001", "type": "string" },
+    { "key": "account_id",    "value": "acc00001-0000-0000-0000-000000000001", "type": "string" },
+    { "key": "debt_id",       "value": "dbt00001-0000-0000-0000-000000000001", "type": "string" },
+    { "key": "investment_id", "value": "inv00001-0000-0000-0000-000000000001", "type": "string" },
+    { "key": "goal_id",       "value": "gol00001-0000-0000-0000-000000000001", "type": "string" },
+    { "key": "tx_id",         "value": "",                      "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "🔐 Auth",
+      "item": [
+        {
+          "name": "01 - Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/register", "host": ["{{base_url}}"], "path": ["api", "auth", "register"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nuevo@bolsi.com\",\n  \"password\": \"Password123\",\n  \"first_name\": \"Ana\",\n  \"last_name\": \"Gómez\",\n  \"phone\": \"+58-414-9876543\",\n  \"country\": \"Venezuela\",\n  \"city\": \"Maracaibo\",\n  \"user_type\": \"NATURAL\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Login (usuario seed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) {",
+                  "  pm.collectionVariables.set('token', json.token);",
+                  "  console.log('Token guardado:', json.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/api/auth/login", "host": ["{{base_url}}"], "path": ["api", "auth", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@bolsi.com\",\n  \"password\": \"Password123\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Health Check",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "💸 Transacciones",
+      "item": [
+        {
+          "name": "01 - Listar Transacciones",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/transactions", "host": ["{{base_url}}"], "path": ["api", "transactions"] }
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Crear Ingreso (sin DOA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.id) { pm.collectionVariables.set('tx_id', json.id); }"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/transactions", "host": ["{{base_url}}"], "path": ["api", "transactions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"amount\": 1500.00,\n  \"type\": \"INCOME\",\n  \"description\": \"Pago por proyecto freelance\",\n  \"transaction_date\": \"2026-06-14\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Crear Ingreso (con DOA 10%+5%)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/transactions", "host": ["{{base_url}}"], "path": ["api", "transactions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"amount\": 2000.00,\n  \"type\": \"INCOME\",\n  \"description\": \"Salario extra\",\n  \"transaction_date\": \"2026-06-14\",\n  \"doa_allocations\": [\n    { \"doa_type\": \"TITHE\",   \"amount\": 200.00 },\n    { \"doa_type\": \"SAVINGS\", \"amount\": 100.00 }\n  ]\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Crear Gasto (Egreso)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/transactions", "host": ["{{base_url}}"], "path": ["api", "transactions"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account_id\": \"{{account_id}}\",\n  \"amount\": 75.50,\n  \"type\": \"EXPENSE\",\n  \"description\": \"Pago de gasolina\",\n  \"transaction_date\": \"2026-06-14\"\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🏦 Deudas",
+      "item": [
+        {
+          "name": "01 - Listar Deudas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/debts", "host": ["{{base_url}}"], "path": ["api", "debts"] }
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Crear Deuda (I_OWE)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/debts", "host": ["{{base_url}}"], "path": ["api", "debts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"counterparty_name\": \"Pedro González\",\n  \"total_amount\": 800.00,\n  \"debt_type\": \"I_OWE\",\n  \"due_date\": \"2026-09-01\",\n  \"interest_rate\": 0\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Crear Deuda (THEY_OWE_ME)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/debts", "host": ["{{base_url}}"], "path": ["api", "debts"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"counterparty_name\": \"Luisa Martínez\",\n  \"total_amount\": 350.00,\n  \"debt_type\": \"THEY_OWE_ME\",\n  \"due_date\": \"2026-08-15\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Pagar Deuda (seed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/debts/{{debt_id}}/pay",
+              "host": ["{{base_url}}"],
+              "path": ["api", "debts", "{{debt_id}}", "pay"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100.00\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "📈 Inversiones",
+      "item": [
+        {
+          "name": "01 - Listar Inversiones",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/investments", "host": ["{{base_url}}"], "path": ["api", "investments"] }
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Crear Inversión",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/investments", "host": ["{{base_url}}"], "path": ["api", "investments"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ethereum (ETH)\",\n  \"asset_type\": \"CRYPTO\",\n  \"platform\": \"Coinbase\",\n  \"current_value\": 500.00\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Aporte a Inversión (seed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/investments/{{investment_id}}/transactions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "investments", "{{investment_id}}", "transactions"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CONTRIBUTION\",\n  \"amount\": 250.00\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Retorno de Inversión (seed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/investments/{{investment_id}}/transactions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "investments", "{{investment_id}}", "transactions"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"RETURN\",\n  \"amount\": 80.00\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "05 - Retiro de Inversión (seed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/investments/{{investment_id}}/transactions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "investments", "{{investment_id}}", "transactions"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"WITHDRAWAL\",\n  \"amount\": 100.00\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "🎯 Metas",
+      "item": [
+        {
+          "name": "01 - Listar Metas",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{base_url}}/api/goals", "host": ["{{base_url}}"], "path": ["api", "goals"] }
+          },
+          "response": []
+        },
+        {
+          "name": "02 - Crear Meta",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": { "raw": "{{base_url}}/api/goals", "host": ["{{base_url}}"], "path": ["api", "goals"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Laptop nueva\",\n  \"description\": \"MacBook Pro M4\",\n  \"target_amount\": 2500.00,\n  \"deadline\": \"2026-11-01\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "03 - Aportar a Meta (seed)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type",  "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}/contribute",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}", "contribute"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 250.00\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "04 - Eliminar Meta (seed)",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{base_url}}/api/goals/{{goal_id}}/",
+              "host": ["{{base_url}}"],
+              "path": ["api", "goals", "{{goal_id}}", ""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

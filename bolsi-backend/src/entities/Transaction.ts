@@ -31,6 +31,9 @@ export class Transaction {
   @Column({ type: 'text', nullable: true })
   description: string;
 
+  @Column({ type: 'text', nullable: true })
+  payment_receipt_image: string;
+
   @Column({ type: 'date' })
   transaction_date: Date;
 

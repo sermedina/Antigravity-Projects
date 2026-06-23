@@ -167,6 +167,7 @@ CREATE TABLE transactions (
     amount DECIMAL(15, 2) NOT NULL,
     type VARCHAR(20) NOT NULL, -- 'INCOME', 'EXPENSE', 'TRANSFER'
     description TEXT,
+    payment_receipt_image TEXT,
     transaction_date DATE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );

@@ -47,6 +47,7 @@ export class TransactionService {
         amount,
         type: data.type,
         description: data.description,
+        payment_receipt_image: data.payment_receipt_image,
         transaction_date: data.transaction_date,
       });
 

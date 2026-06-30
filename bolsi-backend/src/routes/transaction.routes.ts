@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { TransactionController } from '../controllers/transaction.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
+import { authorizeRoles } from '../middlewares/role.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { createTransactionSchema } from '../validators/transaction.validator';
 import multer from "multer";
@@ -38,5 +39,6 @@ const upload = multer({ storage });
 router.post('/', upload.single('payment_receipt_image'), validate(createTransactionSchema), transactionController.create);
 
 router.get('/', transactionController.getAll);
+router.get('/admin', authorizeRoles('SYSTEM_ADMIN'), transactionController.getAdminTransactions);
 
 export default router;

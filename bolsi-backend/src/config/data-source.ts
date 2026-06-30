@@ -15,6 +15,9 @@ import { Investment } from '../entities/Investment';
 import { InvestmentTransaction } from '../entities/InvestmentTransaction';
 import { Goal } from '../entities/Goal';
 import { GoalContribution } from '../entities/GoalContribution';
+import { Reminder } from '../entities/Reminder';
+import { EducationalContent } from '../entities/EducationalContent';
+import { UserContentProgress } from '../entities/UserContentProgress';
 
 dotenv.config();
 
@@ -31,7 +34,8 @@ export const AppDataSource = new DataSource({
     User, Role, SharedAccess, VerificationToken,
     Account, Category, Transaction, DoaAllocation,
     Debt, DebtPayment, Investment, InvestmentTransaction,
-    Goal, GoalContribution
+    Goal, GoalContribution, Reminder, EducationalContent,
+    UserContentProgress
   ],
   migrations: [],
   subscribers: [],

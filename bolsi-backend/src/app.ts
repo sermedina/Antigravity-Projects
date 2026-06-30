@@ -6,6 +6,11 @@ import transactionRoutes from './routes/transaction.routes';
 import debtRoutes from './routes/debt.routes';
 import investmentRoutes from './routes/investment.routes';
 import goalRoutes from './routes/goal.routes';
+import userRoutes from './routes/user.routes';
+import categoryRoutes from './routes/category.routes';
+import contentRoutes from './routes/content.routes';
+import reminderRoutes from './routes/reminder.routes';
+import sharedAccessAuditRoutes from './routes/shared-access-audit.routes';
 
 const app = express();
 
@@ -18,6 +23,11 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/debts', debtRoutes);
 app.use('/api/investments', investmentRoutes);
 app.use('/api/goals', goalRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api/categories', categoryRoutes);
+app.use('/api/educational-contents', contentRoutes);
+app.use('/api/reminders', reminderRoutes);
+app.use('/api/shared-access-audits', sharedAccessAuditRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK' });

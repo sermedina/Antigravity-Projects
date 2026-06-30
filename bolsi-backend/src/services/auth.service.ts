@@ -38,8 +38,13 @@ export class AuthService {
   }
 
   async login(username: string, pass: string) {
-    const user = await this.userRepository.findOneBy({ username });
+    const user = await this.userRepository.findOne({
+      where: { username },
+      relations: { roles: true }
+    });
     if (!user) throw new Error('Invalid credentials');
+
+    if (!user.is_active) throw new Error('User account is disabled');
 
     const isValid = await bcrypt.compare(pass, user.password_hash);
     if (!isValid) throw new Error('Invalid credentials');
@@ -50,11 +55,11 @@ export class AuthService {
       expiresIn: (process.env.JWT_EXPIRES_IN || '1d') as jwt.SignOptions['expiresIn']
     };
     const token = jwt.sign(
-      { id: user.id, type: user.user_type },
+      { id: user.id, username: user.username, type: user.user_type, roles: user.roles ? user.roles.map(r => r.name) : [] },
       process.env.JWT_SECRET || 'secret',
       signOptions
     );
 
-    return { token, user: { id: user.id, username: user.username, email: user.email, first_name: user.first_name } };
+    return { token, user: { id: user.id, username: user.username, email: user.email, first_name: user.first_name, roles: user.roles ? user.roles.map(r => r.name) : [] } };
   }
 }

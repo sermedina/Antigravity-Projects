@@ -49,6 +49,9 @@ export class User {
   @Column({ type: 'varchar', length: 20, default: 'NATURAL' })
   user_type: string;
 
+  @Column({ default: true })
+  is_active: boolean;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

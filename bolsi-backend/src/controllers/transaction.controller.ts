@@ -23,4 +23,13 @@ export class TransactionController {
       res.status(500).json({ error: error.message });
     }
   }
+
+  async getAdminTransactions(req: Request, res: Response) {
+    try {
+      const result = await transactionService.getAllTransactions();
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
 }

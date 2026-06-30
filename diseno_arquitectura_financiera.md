@@ -112,6 +112,7 @@ CREATE TABLE users (
     country VARCHAR(100),
     city VARCHAR(100),
     user_type VARCHAR(20) NOT NULL DEFAULT 'NATURAL', -- 'NATURAL' o 'JURIDICO'
+    is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -222,6 +223,28 @@ CREATE TABLE reminders (
     is_recurring BOOLEAN DEFAULT FALSE,
     recurrence_rule VARCHAR(100),
     is_active BOOLEAN DEFAULT TRUE
+);
+
+-- Contenido Educativo
+CREATE TABLE educational_content (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(150) NOT NULL,
+    type VARCHAR(20) NOT NULL, -- 'ARTICLE', 'VIDEO', 'COURSE'
+    body TEXT,
+    media_url TEXT,
+    status VARCHAR(20) NOT NULL DEFAULT 'DRAFT', -- 'DRAFT', 'PUBLISHED'
+    estimated_read_time INTEGER,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Progreso del Contenido Educativo por Usuario
+CREATE TABLE user_content_progress (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    content_id INTEGER REFERENCES educational_content(id) ON DELETE CASCADE,
+    progress_percentage INTEGER DEFAULT 0,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    UNIQUE(user_id, content_id)
 );
 ```
 

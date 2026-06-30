@@ -1,0 +1,19 @@
+# Dependencias masivas
+node_modules/
+.npm/
+
+# Archivos de compilación móvil (React Native)
+**/android/.gradle/
+**/android/app/build/
+**/ios/Pods/
+**/ios/build/
+.expo/
+
+# Artefactos de empaquetado y build
+dist/
+build/
+.next/
+
+# Archivos de entorno y logs
+.env*
+*.log

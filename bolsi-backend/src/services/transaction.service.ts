@@ -94,4 +94,16 @@ export class TransactionService {
       order: { transaction_date: 'DESC' }
     });
   }
+
+  async getAllTransactions() {
+    return await AppDataSource.getRepository(Transaction).find({
+      relations: {
+        account: true,
+        category: true,
+        doa_allocations: true,
+        user: true
+      },
+      order: { transaction_date: 'DESC' }
+    });
+  }
 }

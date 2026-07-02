@@ -1,27 +1,33 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, FlatList } from 'react-native';
 import { Text, Card, Button, TextInput, IconButton, useTheme, ActivityIndicator, Portal, Dialog, Divider, List, Switch, HelperText, SegmentedButtons } from 'react-native-paper';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
 import { userService } from '../../services/user.service';
 import { reminderService } from '../../services/reminder.service';
 import { useAuth } from '../../context/AuthContext';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import * as Notifications from 'expo-notifications';
 import { SharedAccess, Reminder } from '../../types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-// Configurar comportamiento de las notificaciones push locales
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Cargar de forma segura expo-notifications para evitar fallos en Expo Go en SDK 53
+let Notifications: any = null;
+try {
+  Notifications = require('expo-notifications');
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+} catch (e) {
+  console.warn('expo-notifications no está disponible en este entorno de Expo Go:', e);
+}
 
 // Zod schemas for forms
 const editProfileSchema = z.object({
@@ -51,7 +57,14 @@ const reminderSchema = z.object({
 export default function ProfileScreen() {
   const theme = useTheme();
   const { logout, refreshProfile } = useAuth();
+  const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
+
+  const handleLogout = async () => {
+    await logout();
+    queryClient.clear();
+    router.replace('/(auth)/login');
+  };
 
   // Modal control states
   const [profileModalVisible, setProfileModalVisible] = useState(false);
@@ -148,6 +161,10 @@ export default function ProfileScreen() {
 
   // Schedule notification locally helper
   const scheduleLocalNotification = async (r: Reminder) => {
+    if (!Notifications) {
+      console.warn('Notificaciones no disponibles en este entorno (Expo Go).');
+      return;
+    }
     try {
       const triggerDate = new Date(r.reminder_date);
       if (triggerDate > new Date()) {
@@ -367,7 +384,7 @@ export default function ProfileScreen() {
         </Card>
       )}
 
-      <Button mode="outlined" onPress={logout} style={styles.logoutBtn} textColor={theme.colors.error}>
+      <Button mode="outlined" onPress={handleLogout} style={styles.logoutBtn} textColor={theme.colors.error}>
         Cerrar Sesión
       </Button>
 

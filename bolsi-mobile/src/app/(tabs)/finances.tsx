@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Modal, Image, TouchableOpacity, FlatList } from 'react-native';
-import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, Divider } from 'react-native-paper';
+import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, Divider, HelperText } from 'react-native-paper';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { accountService } from '../../services/account.service';
 import { transactionService } from '../../services/transaction.service';
@@ -42,6 +42,7 @@ export default function FinancesScreen() {
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
   const [txDetailVisible, setTxDetailVisible] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
+  const [txError, setTxError] = useState<string | null>(null);
 
   // Filters for transactions
   const [txFilter, setTxFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'>('ALL');
@@ -104,7 +105,12 @@ export default function FinancesScreen() {
       refetchAccounts();
       setTxModalVisible(false);
       setReceiptImage(null);
+      setTxError(null);
     },
+    onError: (err: any) => {
+      console.error('Error al crear transacción:', err);
+      setTxError(err.response?.data?.error || err.message || 'Error al crear la transacción');
+    }
   });
 
   const deleteTxMutation = useMutation({
@@ -123,7 +129,7 @@ export default function FinancesScreen() {
     defaultValues: { name: '', type: 'BANK', balance: 0, currency: 'USD' }
   });
 
-  const { control: txControl, handleSubmit: handleTxSubmit, reset: resetTxForm, watch: watchTx } = useForm({
+  const { control: txControl, handleSubmit: handleTxSubmit, reset: resetTxForm, watch: watchTx, formState: { errors: txErrors } } = useForm({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       accountId: undefined,
@@ -175,7 +181,16 @@ export default function FinancesScreen() {
   };
 
   const onTxSubmit = (data: any) => {
-    createTxMutation.mutate({ data, image: receiptImage || undefined });
+    const apiData = {
+      account_id: data.accountId,
+      category_id: data.type === 'TRANSFER' ? null : data.categoryId,
+      amount: Number(data.amount),
+      type: data.type,
+      description: data.description,
+      transaction_date: data.transaction_date,
+      destination_account_id: data.type === 'TRANSFER' ? data.destinationAccountId : null,
+    };
+    createTxMutation.mutate({ data: apiData, image: receiptImage || undefined });
   };
 
   const openEditAccount = (acc: Account) => {
@@ -206,6 +221,7 @@ export default function FinancesScreen() {
       destinationAccountId: undefined,
     });
     setReceiptImage(null);
+    setTxError(null);
     setTxModalVisible(true);
   };
 
@@ -437,6 +453,12 @@ export default function FinancesScreen() {
           <Dialog.Title>Nuevo Movimiento</Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.dialogScrollContent}>
+              {txError && (
+                <View style={{ backgroundColor: theme.colors.errorContainer, padding: 8, borderRadius: 8, marginBottom: 8 }}>
+                  <Text style={{ color: theme.colors.error, fontWeight: 'bold' }}>{txError}</Text>
+                </View>
+              )}
+
               <Controller
                 control={txControl}
                 name="type"
@@ -480,6 +502,11 @@ export default function FinancesScreen() {
                         </TouchableOpacity>
                       )}
                     />
+                    {txErrors.accountId && (
+                      <HelperText type="error" visible={true}>
+                        {txErrors.accountId.message}
+                      </HelperText>
+                    )}
                   </View>
                 )}
               />
@@ -510,6 +537,11 @@ export default function FinancesScreen() {
                           </TouchableOpacity>
                         )}
                       />
+                      {txErrors.destinationAccountId && (
+                        <HelperText type="error" visible={true}>
+                          {txErrors.destinationAccountId.message}
+                        </HelperText>
+                      )}
                     </View>
                   )}
                 />
@@ -541,6 +573,11 @@ export default function FinancesScreen() {
                           </TouchableOpacity>
                         )}
                       />
+                      {txErrors.categoryId && (
+                        <HelperText type="error" visible={true}>
+                          {txErrors.categoryId.message}
+                        </HelperText>
+                      )}
                     </View>
                   )}
                 />
@@ -550,14 +587,22 @@ export default function FinancesScreen() {
                 control={txControl}
                 name="amount"
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    mode="outlined"
-                    label="Monto"
-                    keyboardType="numeric"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value === 0 ? '' : String(value)}
-                  />
+                  <View>
+                    <TextInput
+                      mode="outlined"
+                      label="Monto"
+                      keyboardType="numeric"
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value === 0 ? '' : String(value)}
+                      error={!!txErrors.amount}
+                    />
+                    {txErrors.amount && (
+                      <HelperText type="error" visible={true}>
+                        {txErrors.amount.message}
+                      </HelperText>
+                    )}
+                  </View>
                 )}
               />
 
@@ -579,13 +624,21 @@ export default function FinancesScreen() {
                 control={txControl}
                 name="transaction_date"
                 render={({ field: { onChange, onBlur, value } }) => (
-                  <TextInput
-                    mode="outlined"
-                    label="Fecha (YYYY-MM-DD)"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value}
-                  />
+                  <View>
+                    <TextInput
+                      mode="outlined"
+                      label="Fecha (YYYY-MM-DD)"
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value}
+                      error={!!txErrors.transaction_date}
+                    />
+                    {txErrors.transaction_date && (
+                      <HelperText type="error" visible={true}>
+                        {txErrors.transaction_date.message}
+                      </HelperText>
+                    )}
+                  </View>
                 )}
               />
 

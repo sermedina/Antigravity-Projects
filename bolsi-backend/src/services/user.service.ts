@@ -1,7 +1,9 @@
 import { AppDataSource } from '../config/data-source';
 import { User } from '../entities/User';
 import { Account } from '../entities/Account';
+import { SharedAccess } from '../entities/SharedAccess';
 import { Like } from 'typeorm';
+import * as bcrypt from 'bcrypt';
 
 export class UserService {
   private userRepo = AppDataSource.getRepository(User);
@@ -78,5 +80,98 @@ export class UserService {
 
     const { password_hash, ...safeUser } = user;
     return safeUser;
+  }
+
+  async updateProfile(userId: number, data: any) {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) throw new Error('User not found');
+
+    if (data.first_name !== undefined) user.first_name = data.first_name;
+    if (data.last_name !== undefined) user.last_name = data.last_name;
+    if (data.phone !== undefined) user.phone = data.phone;
+    if (data.country !== undefined) user.country = data.country;
+    if (data.city !== undefined) user.city = data.city;
+    if (data.user_type !== undefined) user.user_type = data.user_type;
+
+    await this.userRepo.save(user);
+    const { password_hash, ...safeUser } = user;
+    return safeUser;
+  }
+
+  async changePassword(userId: number, currentPass: string, newPass: string) {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (!user) throw new Error('User not found');
+
+    const isValid = await bcrypt.compare(currentPass, user.password_hash);
+    if (!isValid) throw new Error('Incorrect current password');
+
+    user.password_hash = await bcrypt.hash(newPass, 10);
+    await this.userRepo.save(user);
+
+    return { message: 'Password updated successfully' };
+  }
+
+  async getSharedAccesses(userId: number) {
+    const sharedRepo = AppDataSource.getRepository(SharedAccess);
+    const granted = await sharedRepo.find({
+      where: { owner: { id: userId } },
+      relations: { guest: true }
+    });
+    const received = await sharedRepo.find({
+      where: { guest: { id: userId } },
+      relations: { owner: true }
+    });
+
+    const cleanUser = (u: User) => {
+      if (!u) return u;
+      const { password_hash, ...rest } = u;
+      return rest as User;
+    };
+
+    return {
+      granted: granted.map(acc => ({ ...acc, guest: cleanUser(acc.guest) })),
+      received: received.map(acc => ({ ...acc, owner: cleanUser(acc.owner) }))
+    };
+  }
+
+  async createSharedAccess(userId: number, guestEmail: string, accessLevel: string = 'READ_ONLY') {
+    const sharedRepo = AppDataSource.getRepository(SharedAccess);
+    const owner = await this.userRepo.findOneBy({ id: userId });
+    if (!owner) throw new Error('Owner user not found');
+
+    const guest = await this.userRepo.findOneBy({ email: guestEmail });
+    if (!guest) throw new Error('Guest user not found with that email');
+
+    if (owner.id === guest.id) throw new Error('You cannot share access with yourself');
+
+    const existing = await sharedRepo.findOneBy({ owner: { id: owner.id }, guest: { id: guest.id } });
+    if (existing) throw new Error('Access is already shared with this user');
+
+    const sharedAccess = sharedRepo.create({
+      owner,
+      guest,
+      access_level: accessLevel
+    });
+
+    const saved = await sharedRepo.save(sharedAccess);
+    const { password_hash, ...safeGuest } = guest;
+    return { ...saved, guest: safeGuest };
+  }
+
+  async deleteSharedAccess(userId: number, accessId: string) {
+    const sharedRepo = AppDataSource.getRepository(SharedAccess);
+    const access = await sharedRepo.findOne({
+      where: { id: accessId },
+      relations: { owner: true, guest: true }
+    });
+
+    if (!access) throw new Error('Shared access entry not found');
+
+    if (access.owner.id !== userId && access.guest.id !== userId) {
+      throw new Error('Unauthorized to remove this access');
+    }
+
+    await sharedRepo.remove(access);
+    return { message: 'Shared access removed successfully' };
   }
 }

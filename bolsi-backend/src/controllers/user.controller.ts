@@ -46,4 +46,67 @@ export class UserController {
       res.status(400).json({ error: error.message });
     }
   }
+
+  async getProfile(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const result = await userService.getUserById(userId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(404).json({ error: error.message });
+    }
+  }
+
+  async updateProfile(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const result = await userService.updateProfile(userId, req.body);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async changePassword(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const { current_password, new_password } = req.body;
+      const result = await userService.changePassword(userId, current_password, new_password);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async getSharedAccess(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const result = await userService.getSharedAccesses(userId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+
+  async createSharedAccess(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const { guest_email, access_level } = req.body;
+      const result = await userService.createSharedAccess(userId, guest_email, access_level);
+      res.status(201).json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async deleteSharedAccess(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const accessId = req.params.id as string;
+      const result = await userService.deleteSharedAccess(userId, accessId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
 }

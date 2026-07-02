@@ -46,4 +46,26 @@ export class GoalController {
       res.status(400).json({ error: error.message });
     }
   }
+
+  async getById(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const goalId = parseInt(req.params.id as string, 10);
+      const result = await goalService.getGoalById(userId, goalId);
+      res.json(result);
+    } catch (error: any) {
+      res.status(404).json({ error: error.message });
+    }
+  }
+
+  async update(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const goalId = parseInt(req.params.id as string, 10);
+      const result = await goalService.updateGoal(userId, goalId, req.body);
+      res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
 }

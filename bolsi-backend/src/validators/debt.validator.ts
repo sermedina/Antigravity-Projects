@@ -16,3 +16,14 @@ export const payDebtSchema = z.object({
     transaction_id: z.number().optional()
   })
 });
+
+export const updateDebtSchema = z.object({
+  body: z.object({
+    counterparty_name: z.string().optional(),
+    total_amount: z.number().positive().optional(),
+    debt_type: z.enum(['I_OWE', 'THEY_OWE_ME']).optional(),
+    due_date: z.string().optional(),
+    interest_rate: z.number().min(0).optional()
+  })
+});
+

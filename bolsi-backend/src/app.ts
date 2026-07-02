@@ -11,12 +11,14 @@ import categoryRoutes from './routes/category.routes';
 import contentRoutes from './routes/content.routes';
 import reminderRoutes from './routes/reminder.routes';
 import sharedAccessAuditRoutes from './routes/shared-access-audit.routes';
+import accountRoutes from './routes/account.routes';
 
 const app = express();
 
 app.use(cors());
 app.use(helmet());
 app.use(express.json());
+app.use('/uploads', express.static(process.env.IMAGES_UPLOAD_PATH || '/data/images'));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
@@ -28,6 +30,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/educational-contents', contentRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/shared-access-audits', sharedAccessAuditRoutes);
+app.use('/api/accounts', accountRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK' });

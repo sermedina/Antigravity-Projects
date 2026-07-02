@@ -1,0 +1,669 @@
+import React, { useState, useMemo } from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, FlatList } from 'react-native';
+import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, ProgressBar, Divider, HelperText } from 'react-native-paper';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { debtService } from '../../services/debt.service';
+import { investmentService } from '../../services/investment.service';
+import { goalService } from '../../services/goal.service';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { Debt, Investment, Goal } from '../../types';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+
+// Form validation schemas
+const debtSchema = z.object({
+  counterparty_name: z.string().min(1, 'El nombre del deudor/acreedor es requerido'),
+  total_amount: z.coerce.number().positive('El monto debe ser mayor a 0'),
+  debt_type: z.enum(['I_OWE', 'THEY_OWE_ME']),
+  interest_rate: z.coerce.number().min(0, 'El interés no puede ser negativo'),
+  due_date: z.string().optional(),
+});
+
+const investmentSchema = z.object({
+  name: z.string().min(1, 'El nombre de la inversión es requerido'),
+  asset_type: z.enum(['STOCK', 'CRYPTO', 'REAL_ESTATE', 'OTHER']),
+  platform: z.string().optional(),
+  current_value: z.coerce.number().min(0),
+});
+
+const goalSchema = z.object({
+  name: z.string().min(1, 'El nombre de la meta es requerido'),
+  description: z.string().optional(),
+  target_amount: z.coerce.number().positive('La meta debe ser mayor a 0'),
+  deadline: z.string().optional(),
+});
+
+// Simplified action modals schema
+const actionSchema = z.object({
+  amount: z.coerce.number().positive('El monto debe ser mayor a 0'),
+});
+
+export default function PlanningScreen() {
+  const theme = useTheme();
+  const [activeSection, setActiveSection] = useState<'debts' | 'investments' | 'goals'>('debts');
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Modals visibility state
+  const [debtModalVisible, setDebtModalVisible] = useState(false);
+  const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
+  const [payModalVisible, setPayModalVisible] = useState(false);
+
+  const [investmentModalVisible, setInvestmentModalVisible] = useState(false);
+  const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
+  const [invTxModalVisible, setInvTxModalVisible] = useState(false);
+  const [invTxType, setInvTxType] = useState<'CONTRIBUTION' | 'WITHDRAWAL' | 'RETURN'>('CONTRIBUTION');
+
+  const [goalModalVisible, setGoalModalVisible] = useState(false);
+  const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
+  const [contribModalVisible, setContribModalVisible] = useState(false);
+
+  // React Queries
+  const { data: debts, refetch: refetchDebts, isLoading: loadingDebts } = useQuery({
+    queryKey: ['debts'],
+    queryFn: () => debtService.getDebts(),
+  });
+
+  const { data: investments, refetch: refetchInvestments, isLoading: loadingInvestments } = useQuery({
+    queryKey: ['investments'],
+    queryFn: () => investmentService.getInvestments(),
+  });
+
+  const { data: goals, refetch: refetchGoals, isLoading: loadingGoals } = useQuery({
+    queryKey: ['goals'],
+    queryFn: () => goalService.getGoals(),
+  });
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await Promise.all([refetchDebts(), refetchInvestments(), refetchGoals()]);
+    setRefreshing(false);
+  };
+
+  // Mutators for Debt
+  const createDebtMutation = useMutation({
+    mutationFn: (data: Partial<Debt>) => debtService.createDebt(data),
+    onSuccess: () => { refetchDebts(); setDebtModalVisible(false); }
+  });
+
+  const updateDebtMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Debt> }) => debtService.updateDebt(id, data),
+    onSuccess: () => { refetchDebts(); setDebtModalVisible(false); setEditingDebt(null); }
+  });
+
+  const deleteDebtMutation = useMutation({
+    mutationFn: (id: number) => debtService.deleteDebt(id),
+    onSuccess: () => { refetchDebts(); setDebtModalVisible(false); setEditingDebt(null); }
+  });
+
+  const payDebtMutation = useMutation({
+    mutationFn: ({ debtId, amount }: { debtId: number, amount: number }) => debtService.payDebt(debtId, amount),
+    onSuccess: () => { refetchDebts(); setPayModalVisible(false); setEditingDebt(null); }
+  });
+
+  // Mutators for Investment
+  const createInvMutation = useMutation({
+    mutationFn: (data: Partial<Investment>) => investmentService.createInvestment(data),
+    onSuccess: () => { refetchInvestments(); setInvestmentModalVisible(false); }
+  });
+
+  const updateInvMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Investment> }) => investmentService.updateInvestment(id, data),
+    onSuccess: () => { refetchInvestments(); setInvestmentModalVisible(false); setEditingInvestment(null); }
+  });
+
+  const deleteInvMutation = useMutation({
+    mutationFn: (id: number) => investmentService.deleteInvestment(id),
+    onSuccess: () => { refetchInvestments(); setInvestmentModalVisible(false); setEditingInvestment(null); }
+  });
+
+  const addInvTxMutation = useMutation({
+    mutationFn: ({ invId, type, amount }: { invId: number, type: string, amount: number }) =>
+      investmentService.addInvestmentTransaction(invId, { type, amount }),
+    onSuccess: () => { refetchInvestments(); setInvTxModalVisible(false); setEditingInvestment(null); }
+  });
+
+  // Mutators for Goal
+  const createGoalMutation = useMutation({
+    mutationFn: (data: Partial<Goal>) => goalService.createGoal(data),
+    onSuccess: () => { refetchGoals(); setGoalModalVisible(false); }
+  });
+
+  const updateGoalMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: Partial<Goal> }) => goalService.updateGoal(id, data),
+    onSuccess: () => { refetchGoals(); setGoalModalVisible(false); setEditingGoal(null); }
+  });
+
+  const deleteGoalMutation = useMutation({
+    mutationFn: (id: number) => goalService.deleteGoal(id),
+    onSuccess: () => { refetchGoals(); setGoalModalVisible(false); setEditingGoal(null); }
+  });
+
+  const contributeGoalMutation = useMutation({
+    mutationFn: ({ goalId, amount }: { goalId: number, amount: number }) => goalService.contributeToGoal(goalId, amount),
+    onSuccess: () => { refetchGoals(); setContribModalVisible(false); setEditingGoal(null); }
+  });
+
+  // Forms configurations
+  const { control: debtControl, handleSubmit: handleDebtSubmit, reset: resetDebtForm } = useForm({
+    resolver: zodResolver(debtSchema),
+    defaultValues: { counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, due_date: '' }
+  });
+
+  const { control: invControl, handleSubmit: handleInvSubmit, reset: resetInvForm } = useForm({
+    resolver: zodResolver(investmentSchema),
+    defaultValues: { name: '', asset_type: 'STOCK', platform: '', current_value: 0 }
+  });
+
+  const { control: goalControl, handleSubmit: handleGoalSubmit, reset: resetGoalForm } = useForm({
+    resolver: zodResolver(goalSchema),
+    defaultValues: { name: '', description: '', target_amount: 0, deadline: '' }
+  });
+
+  const { control: actionControl, handleSubmit: handleActionSubmit, reset: resetActionForm } = useForm({
+    resolver: zodResolver(actionSchema),
+    defaultValues: { amount: 0 }
+  });
+
+  // Submit functions
+  const onDebtSubmit = (data: any) => {
+    if (editingDebt) {
+      updateDebtMutation.mutate({ id: editingDebt.id, data });
+    } else {
+      createDebtMutation.mutate(data);
+    }
+  };
+
+  const onInvSubmit = (data: any) => {
+    if (editingInvestment) {
+      updateInvMutation.mutate({ id: editingInvestment.id, data });
+    } else {
+      createInvMutation.mutate(data);
+    }
+  };
+
+  const onGoalSubmit = (data: any) => {
+    if (editingGoal) {
+      updateGoalMutation.mutate({ id: editingGoal.id, data });
+    } else {
+      createGoalMutation.mutate(data);
+    }
+  };
+
+  const onActionSubmit = (data: any) => {
+    if (payModalVisible && editingDebt) {
+      payDebtMutation.mutate({ debtId: editingDebt.id, amount: data.amount });
+    } else if (contribModalVisible && editingGoal) {
+      contributeGoalMutation.mutate({ goalId: editingGoal.id, amount: data.amount });
+    } else if (invTxModalVisible && editingInvestment) {
+      addInvTxMutation.mutate({ invId: editingInvestment.id, type: invTxType, amount: data.amount });
+    }
+  };
+
+  // Open modals setup
+  const openDebtEdit = (d: Debt) => {
+    setEditingDebt(d);
+    resetDebtForm({
+      counterparty_name: d.counterparty_name,
+      total_amount: Number(d.total_amount),
+      debt_type: d.debt_type,
+      interest_rate: Number(d.interest_rate),
+      due_date: d.due_date ? new Date(d.due_date).toISOString().split('T')[0] : '',
+    });
+    setDebtModalVisible(true);
+  };
+
+  const openDebtPay = (d: Debt) => {
+    setEditingDebt(d);
+    resetActionForm({ amount: 0 });
+    setPayModalVisible(true);
+  };
+
+  const openInvEdit = (inv: Investment) => {
+    setEditingInvestment(inv);
+    resetInvForm({
+      name: inv.name,
+      asset_type: inv.asset_type,
+      platform: inv.platform || '',
+      current_value: Number(inv.current_value),
+    });
+    setInvestmentModalVisible(true);
+  };
+
+  const openInvTx = (inv: Investment, type: typeof invTxType) => {
+    setEditingInvestment(inv);
+    setInvTxType(type);
+    resetActionForm({ amount: 0 });
+    setInvTxModalVisible(true);
+  };
+
+  const openGoalEdit = (g: Goal) => {
+    setEditingGoal(g);
+    resetGoalForm({
+      name: g.name,
+      description: g.description || '',
+      target_amount: Number(g.target_amount),
+      deadline: g.deadline ? new Date(g.deadline).toISOString().split('T')[0] : '',
+    });
+    setGoalModalVisible(true);
+  };
+
+  const openGoalContrib = (g: Goal) => {
+    setEditingGoal(g);
+    resetActionForm({ amount: 0 });
+    setContribModalVisible(true);
+  };
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  };
+
+  const isMainLoading = loadingDebts || loadingInvestments || loadingGoals;
+
+  return (
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <View style={styles.headerToggle}>
+        <SegmentedButtons
+          value={activeSection}
+          onValueChange={(value) => setActiveSection(value as any)}
+          buttons={[
+            { value: 'debts', label: 'Deudas' },
+            { value: 'investments', label: 'Inversiones' },
+            { value: 'goals', label: 'Metas' },
+          ]}
+        />
+      </View>
+
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      >
+        {isMainLoading ? (
+          <ActivityIndicator style={styles.loader} size="large" />
+        ) : activeSection === 'debts' ? (
+          debts?.map((d) => {
+            const paid = Number(d.total_amount) - Number(d.remaining_amount);
+            const progress = Number(d.total_amount) > 0 ? paid / Number(d.total_amount) : 0;
+            return (
+              <Card key={d.id} style={styles.card} onPress={() => openDebtEdit(d)}>
+                <Card.Content>
+                  <View style={styles.rowBetween}>
+                    <View>
+                      <Text style={styles.cardTitle}>{d.counterparty_name}</Text>
+                      <Text style={styles.cardSub}>
+                        {d.debt_type === 'I_OWE' ? 'Debo a esta persona' : 'Me deben a mí'} • Interés: {d.interest_rate}%
+                      </Text>
+                    </View>
+                    <IconButton
+                      icon="cash-register"
+                      iconColor={theme.colors.primary}
+                      size={24}
+                      onPress={() => openDebtPay(d)}
+                    />
+                  </View>
+                  <ProgressBar progress={progress} color={d.debt_type === 'I_OWE' ? '#EF4444' : '#10B981'} style={styles.progress} />
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.cardProgressText}>Pagado: {formatCurrency(paid)}</Text>
+                    <Text style={styles.cardTargetText}>Resta: {formatCurrency(Number(d.remaining_amount))}</Text>
+                  </View>
+                </Card.Content>
+              </Card>
+            );
+          })
+        ) : activeSection === 'investments' ? (
+          investments?.map((inv) => (
+            <Card key={inv.id} style={styles.card} onPress={() => openInvEdit(inv)}>
+              <Card.Content>
+                <View style={styles.rowBetween}>
+                  <View>
+                    <Text style={styles.cardTitle}>{inv.name}</Text>
+                    <Text style={styles.cardSub}>
+                      Plataforma: {inv.platform || 'N/A'} • Tipo: {inv.asset_type}
+                    </Text>
+                  </View>
+                  <Text style={styles.invValue}>{formatCurrency(Number(inv.current_value))}</Text>
+                </View>
+                <View style={[styles.row, styles.invActions]}>
+                  <Button compact mode="outlined" icon="plus" onPress={() => openInvTx(inv, 'CONTRIBUTION')}>
+                    Aportar
+                  </Button>
+                  <Button compact mode="outlined" icon="minus" onPress={() => openInvTx(inv, 'WITHDRAWAL')}>
+                    Retirar
+                  </Button>
+                  <Button compact mode="outlined" icon="trending-up" onPress={() => openInvTx(inv, 'RETURN')}>
+                    Rendimiento
+                  </Button>
+                </View>
+              </Card.Content>
+            </Card>
+          ))
+        ) : (
+          goals?.map((g) => {
+            const progress = Number(g.target_amount) > 0 ? Number(g.current_amount) / Number(g.target_amount) : 0;
+            return (
+              <Card key={g.id} style={styles.card} onPress={() => openGoalEdit(g)}>
+                <Card.Content>
+                  <View style={styles.rowBetween}>
+                    <View style={styles.flex1}>
+                      <Text style={styles.cardTitle}>{g.name}</Text>
+                      {g.description && <Text style={styles.cardSub}>{g.description}</Text>}
+                    </View>
+                    <IconButton
+                      icon="piggy-bank"
+                      iconColor={theme.colors.primary}
+                      size={24}
+                      onPress={() => openGoalContrib(g)}
+                    />
+                  </View>
+                  <ProgressBar progress={progress} color="#D97706" style={styles.progress} />
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.cardProgressText}>Ahorrado: {formatCurrency(Number(g.current_amount))} ({(progress * 100).toFixed(0)}%)</Text>
+                    <Text style={styles.cardTargetText}>Meta: {formatCurrency(Number(g.target_amount))}</Text>
+                  </View>
+                </Card.Content>
+              </Card>
+            );
+          })
+        )}
+      </ScrollView>
+
+      {/* FAB to Add item depending on tab */}
+      <FAB
+        icon="plus"
+        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+        color="#FFFFFF"
+        onPress={() => {
+          if (activeSection === 'debts') {
+            setEditingDebt(null);
+            resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, due_date: '' });
+            setDebtModalVisible(true);
+          } else if (activeSection === 'investments') {
+            setEditingInvestment(null);
+            resetInvForm({ name: '', asset_type: 'STOCK', platform: '', current_value: 0 });
+            setInvestmentModalVisible(true);
+          } else {
+            setEditingGoal(null);
+            resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '' });
+            setGoalModalVisible(true);
+          }
+        }}
+      />
+
+      {/* MODAL: CREATE/EDIT DEBT */}
+      <Portal>
+        <Dialog visible={debtModalVisible} onDismiss={() => setDebtModalVisible(false)}>
+          <Dialog.Title>{editingDebt ? 'Editar Deuda' : 'Nueva Deuda'}</Dialog.Title>
+          <Dialog.Content style={styles.dialogContent}>
+            <Controller
+              control={debtControl}
+              name="counterparty_name"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Contacto / Entidad" onBlur={onBlur} onChangeText={onChange} value={value} />
+              )}
+            />
+            <Controller
+              control={debtControl}
+              name="total_amount"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Monto Total" keyboardType="numeric" onBlur={onBlur} onChangeText={onChange} value={value === 0 ? '' : String(value)} />
+              )}
+            />
+            <Controller
+              control={debtControl}
+              name="debt_type"
+              render={({ field: { onChange, value } }) => (
+                <SegmentedButtons
+                  value={value}
+                  onValueChange={onChange}
+                  buttons={[
+                    { value: 'I_OWE', label: 'Debo' },
+                    { value: 'THEY_OWE_ME', label: 'Me deben' },
+                  ]}
+                />
+              )}
+            />
+            <Controller
+              control={debtControl}
+              name="interest_rate"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Interés (%)" keyboardType="numeric" onBlur={onBlur} onChangeText={onChange} value={value === 0 ? '' : String(value)} />
+              )}
+            />
+            <Controller
+              control={debtControl}
+              name="due_date"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Fecha Límite (YYYY-MM-DD)" onBlur={onBlur} onChangeText={onChange} value={value} />
+              )}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            {editingDebt && (
+              <Button textColor={theme.colors.error} onPress={() => deleteDebtMutation.mutate(editingDebt.id)}>
+                Eliminar
+              </Button>
+            )}
+            <Button onPress={() => setDebtModalVisible(false)}>Cancelar</Button>
+            <Button onPress={handleDebtSubmit(onDebtSubmit)}>Guardar</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* MODAL: CREATE/EDIT INVESTMENT */}
+      <Portal>
+        <Dialog visible={investmentModalVisible} onDismiss={() => setInvestmentModalVisible(false)}>
+          <Dialog.Title>{editingInvestment ? 'Editar Inversión' : 'Nueva Inversión'}</Dialog.Title>
+          <Dialog.Content style={styles.dialogContent}>
+            <Controller
+              control={invControl}
+              name="name"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Nombre" onBlur={onBlur} onChangeText={onChange} value={value} />
+              )}
+            />
+            <Controller
+              control={invControl}
+              name="platform"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Plataforma" onBlur={onBlur} onChangeText={onChange} value={value} />
+              )}
+            />
+            <Controller
+              control={invControl}
+              name="asset_type"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.selectContainer}>
+                  <Text style={styles.label}>Tipo de Activo</Text>
+                  <SegmentedButtons
+                    value={value}
+                    onValueChange={onChange}
+                    buttons={[
+                      { value: 'STOCK', label: 'Acción' },
+                      { value: 'CRYPTO', label: 'Crypto' },
+                      { value: 'REAL_ESTATE', label: 'Inmueble' },
+                      { value: 'OTHER', label: 'Otro' },
+                    ]}
+                  />
+                </View>
+              )}
+            />
+            <Controller
+              control={invControl}
+              name="current_value"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Monto Actual" keyboardType="numeric" onBlur={onBlur} onChangeText={onChange} value={value === 0 ? '' : String(value)} />
+              )}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            {editingInvestment && (
+              <Button textColor={theme.colors.error} onPress={() => deleteInvMutation.mutate(editingInvestment.id)}>
+                Eliminar
+              </Button>
+            )}
+            <Button onPress={() => setInvestmentModalVisible(false)}>Cancelar</Button>
+            <Button onPress={handleInvSubmit(onInvSubmit)}>Guardar</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* MODAL: CREATE/EDIT GOAL */}
+      <Portal>
+        <Dialog visible={goalModalVisible} onDismiss={() => setGoalModalVisible(false)}>
+          <Dialog.Title>{editingGoal ? 'Editar Meta' : 'Nueva Meta'}</Dialog.Title>
+          <Dialog.Content style={styles.dialogContent}>
+            <Controller
+              control={goalControl}
+              name="name"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Nombre" onBlur={onBlur} onChangeText={onChange} value={value} />
+              )}
+            />
+            <Controller
+              control={goalControl}
+              name="description"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Descripción" onBlur={onBlur} onChangeText={onChange} value={value} />
+              )}
+            />
+            <Controller
+              control={goalControl}
+              name="target_amount"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Meta de Ahorro" keyboardType="numeric" onBlur={onBlur} onChangeText={onChange} value={value === 0 ? '' : String(value)} />
+              )}
+            />
+            <Controller
+              control={goalControl}
+              name="deadline"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Fecha Límite (YYYY-MM-DD)" onBlur={onBlur} onChangeText={onChange} value={value} />
+              )}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            {editingGoal && (
+              <Button textColor={theme.colors.error} onPress={() => deleteGoalMutation.mutate(editingGoal.id)}>
+                Eliminar
+              </Button>
+            )}
+            <Button onPress={() => setGoalModalVisible(false)}>Cancelar</Button>
+            <Button onPress={handleGoalSubmit(onGoalSubmit)}>Guardar</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* MODAL GENERAL ACTION DIALOG (PAY / CONTRIBUTE / INVESTMENT TX) */}
+      <Portal>
+        <Dialog visible={payModalVisible || contribModalVisible || invTxModalVisible} onDismiss={() => { setPayModalVisible(false); setContribModalVisible(false); setInvTxModalVisible(false); }}>
+          <Dialog.Title>
+            {payModalVisible ? 'Registrar Pago' : contribModalVisible ? 'Aportar a Meta' : `Movimiento de Inversión (${invTxType === 'CONTRIBUTION' ? 'Aporte' : invTxType === 'WITHDRAWAL' ? 'Retiro' : 'Rendimiento'})`}
+          </Dialog.Title>
+          <Dialog.Content style={styles.dialogContent}>
+            <Controller
+              control={actionControl}
+              name="amount"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <TextInput mode="outlined" label="Monto" keyboardType="numeric" onBlur={onBlur} onChangeText={onChange} value={value === 0 ? '' : String(value)} />
+              )}
+            />
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => { setPayModalVisible(false); setContribModalVisible(false); setInvTxModalVisible(false); }}>Cancelar</Button>
+            <Button onPress={handleActionSubmit(onActionSubmit)}>Registrar</Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  headerToggle: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  scrollContainer: {
+    padding: 16,
+    gap: 12,
+    paddingBottom: 80,
+  },
+  loader: {
+    marginTop: 40,
+  },
+  card: {
+    elevation: 2,
+    borderRadius: 12,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  cardSub: {
+    fontSize: 12,
+    opacity: 0.5,
+    marginTop: 2,
+  },
+  progress: {
+    height: 8,
+    borderRadius: 4,
+    marginVertical: 12,
+  },
+  rowBetween: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardProgressText: {
+    fontSize: 11,
+    color: '#64748B',
+  },
+  cardTargetText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  invValue: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#10B981',
+  },
+  row: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  invActions: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+    paddingTop: 8,
+  },
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    borderRadius: 30,
+    elevation: 6,
+  },
+  dialogContent: {
+    gap: 12,
+  },
+  selectContainer: {
+    gap: 6,
+  },
+  label: {
+    fontSize: 12,
+    fontWeight: '600',
+    opacity: 0.7,
+  },
+  flex1: {
+    flex: 1,
+  },
+  actionButton: {
+    borderRadius: 8,
+  },
+});

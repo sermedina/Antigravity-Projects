@@ -62,4 +62,66 @@ export class AuthService {
 
     return { token, user: { id: user.id, username: user.username, email: user.email, first_name: user.first_name, roles: user.roles ? user.roles.map(r => r.name) : [] } };
   }
+
+  async verifyEmail(email: string, tokenStr: string) {
+    const foundToken = await this.tokenRepository.findOne({
+      where: { token: tokenStr, type: 'EMAIL_VERIFICATION', is_used: false },
+      relations: { user: true }
+    });
+
+    if (!foundToken) throw new Error('Invalid or expired verification token');
+    if (foundToken.expires_at < new Date()) throw new Error('Token has expired');
+    if (foundToken.user.email !== email) throw new Error('Token does not match email');
+
+    foundToken.is_used = true;
+    await this.tokenRepository.save(foundToken);
+
+    foundToken.user.is_email_verified = true;
+    await this.userRepository.save(foundToken.user);
+
+    return { message: 'Email verified successfully' };
+  }
+
+  async requestPasswordRecovery(email?: string, phone?: string) {
+    let user;
+    if (email) {
+      user = await this.userRepository.findOneBy({ email });
+    } else if (phone) {
+      user = await this.userRepository.findOneBy({ phone });
+    }
+
+    if (!user) throw new Error('User not found');
+
+    const tokenStr = randomBytes(32).toString('hex');
+    const token = this.tokenRepository.create({
+      user: { id: user.id },
+      token: tokenStr,
+      type: 'PASSWORD_RECOVERY',
+      medium: email ? 'EMAIL' : 'SMS',
+      expires_at: new Date(Date.now() + 1 * 60 * 60 * 1000) // 1 hour
+    });
+    await this.tokenRepository.save(token);
+
+    return { message: 'Recovery token generated', token: tokenStr };
+  }
+
+  async resetPassword(tokenStr: string, newPassword: string) {
+    const foundToken = await this.tokenRepository.findOne({
+      where: { token: tokenStr, type: 'PASSWORD_RECOVERY', is_used: false },
+      relations: { user: true }
+    });
+
+    if (!foundToken) throw new Error('Invalid or expired recovery token');
+    if (foundToken.expires_at < new Date()) throw new Error('Token has expired');
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    foundToken.user.password_hash = hashedPassword;
+    await this.userRepository.save(foundToken.user);
+
+    foundToken.is_used = true;
+    await this.tokenRepository.save(foundToken);
+
+    return { message: 'Password updated successfully' };
+  }
 }
+

@@ -66,6 +66,27 @@ export class GoalService {
     });
   }
 
+  async getGoalById(userId: number, goalId: number) {
+    const goal = await this.goalRepo.findOne({
+      where: { id: goalId, user: { id: userId } },
+      relations: { contributions: true }
+    });
+    if (!goal) throw new Error('Goal not found');
+    return goal;
+  }
+
+  async updateGoal(userId: number, goalId: number, data: any) {
+    const goal = await this.getGoalById(userId, goalId);
+
+    if (data.name !== undefined) goal.name = data.name;
+    if (data.description !== undefined) goal.description = data.description;
+    if (data.target_amount !== undefined) goal.target_amount = data.target_amount;
+    if (data.deadline !== undefined) goal.deadline = data.deadline;
+    if (data.status !== undefined) goal.status = data.status;
+
+    return await this.goalRepo.save(goal);
+  }
+
   async deleteGoal(userId: number, goalId: number) {
     const goal = await this.goalRepo.findOneBy({ id: goalId, user: { id: userId } });
     if (!goal) throw new Error('Goal not found');

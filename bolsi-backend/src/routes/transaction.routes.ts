@@ -3,7 +3,7 @@ import { TransactionController } from '../controllers/transaction.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/role.middleware';
 import { validate } from '../middlewares/validate.middleware';
-import { createTransactionSchema } from '../validators/transaction.validator';
+import { createTransactionSchema, updateTransactionSchema } from '../validators/transaction.validator';
 import multer from "multer";
 import fs from "fs";
 
@@ -40,5 +40,8 @@ router.post('/', upload.single('payment_receipt_image'), validate(createTransact
 
 router.get('/', transactionController.getAll);
 router.get('/admin', authorizeRoles('SYSTEM_ADMIN'), transactionController.getAdminTransactions);
+router.get('/:id', transactionController.getById);
+router.put('/:id', upload.single('payment_receipt_image'), validate(updateTransactionSchema), transactionController.update);
+router.delete('/:id', transactionController.delete);
 
 export default router;

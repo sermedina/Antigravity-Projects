@@ -70,4 +70,41 @@ export class DebtService {
       relations: { payments: true }
     });
   }
+
+  async getDebtById(userId: number, debtId: number) {
+    const debt = await this.debtRepo.findOne({
+      where: { id: debtId, user: { id: userId } },
+      relations: { payments: true }
+    });
+    if (!debt) throw new Error('Debt not found');
+    return debt;
+  }
+
+  async updateDebt(userId: number, debtId: number, data: any) {
+    const debt = await this.getDebtById(userId, debtId);
+
+    if (data.counterparty_name !== undefined) debt.counterparty_name = data.counterparty_name;
+    if (data.debt_type !== undefined) debt.debt_type = data.debt_type;
+    if (data.due_date !== undefined) debt.due_date = data.due_date;
+    if (data.interest_rate !== undefined) debt.interest_rate = data.interest_rate;
+
+    if (data.total_amount !== undefined) {
+      const oldTotal = Number(debt.total_amount);
+      const newTotal = Number(data.total_amount);
+      const diff = newTotal - oldTotal;
+      debt.total_amount = newTotal;
+      debt.remaining_amount = Number(debt.remaining_amount) + diff;
+      if (Number(debt.remaining_amount) < 0) {
+        throw new Error('New total amount is less than already paid amount');
+      }
+    }
+
+    return await this.debtRepo.save(debt);
+  }
+
+  async deleteDebt(userId: number, debtId: number) {
+    const debt = await this.getDebtById(userId, debtId);
+    await this.debtRepo.remove(debt);
+    return { message: 'Debt deleted successfully' };
+  }
 }

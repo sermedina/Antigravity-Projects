@@ -16,3 +16,13 @@ export const addInvestmentTransactionSchema = z.object({
     transaction_id: z.number().optional()
   })
 });
+
+export const updateInvestmentSchema = z.object({
+  body: z.object({
+    name: z.string().optional(),
+    asset_type: z.enum(['STOCK', 'CRYPTO', 'REAL_ESTATE', 'OTHER']).optional(),
+    platform: z.string().optional(),
+    current_value: z.number().min(0).optional()
+  })
+});
+

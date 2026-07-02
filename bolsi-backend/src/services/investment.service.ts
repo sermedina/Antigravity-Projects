@@ -69,4 +69,30 @@ export class InvestmentService {
       relations: { transactions: true }
     });
   }
+
+  async getInvestmentById(userId: number, invId: number) {
+    const inv = await this.invRepo.findOne({
+      where: { id: invId, user: { id: userId } },
+      relations: { transactions: true }
+    });
+    if (!inv) throw new Error('Investment not found');
+    return inv;
+  }
+
+  async updateInvestment(userId: number, invId: number, data: any) {
+    const inv = await this.getInvestmentById(userId, invId);
+
+    if (data.name !== undefined) inv.name = data.name;
+    if (data.asset_type !== undefined) inv.asset_type = data.asset_type;
+    if (data.platform !== undefined) inv.platform = data.platform;
+    if (data.current_value !== undefined) inv.current_value = data.current_value.toString();
+
+    return await this.invRepo.save(inv);
+  }
+
+  async deleteInvestment(userId: number, invId: number) {
+    const inv = await this.getInvestmentById(userId, invId);
+    await this.invRepo.remove(inv);
+    return { message: 'Investment deleted successfully' };
+  }
 }

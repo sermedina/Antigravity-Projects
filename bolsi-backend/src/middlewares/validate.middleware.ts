@@ -1,6 +1,29 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodObject } from 'zod';
 
+const cleanMultipartBody = (obj: any): any => {
+  if (obj === null || obj === undefined) return obj;
+  if (typeof obj === 'string') {
+    if (obj === 'null') return null;
+    if (obj === 'undefined') return undefined;
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map(cleanMultipartBody);
+  }
+  if (typeof obj === 'object') {
+    const cleaned: any = {};
+    for (const key of Object.keys(obj)) {
+      const val = cleanMultipartBody(obj[key]);
+      if (val !== undefined) {
+        cleaned[key] = val;
+      }
+    }
+    return cleaned;
+  }
+  return obj;
+};
+
 export const validate = (schema: ZodObject) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -11,6 +34,10 @@ export const validate = (schema: ZodObject) =>
         } catch (e) {
           // Ignorar error y dejar que Zod valide el valor no válido
         }
+      }
+
+      if (req.body) {
+        req.body = cleanMultipartBody(req.body);
       }
 
       const parsed: any = await schema.parseAsync({

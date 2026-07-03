@@ -34,7 +34,11 @@ export const transactionService = {
         type
       } as any);
 
-      const response = await api.post('/transactions', formData);
+      const response = await api.post('/transactions', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return response.data;
     } else {
       const response = await api.post('/transactions', data);
@@ -64,7 +68,11 @@ export const transactionService = {
         type
       } as any);
 
-      const response = await api.put(`/transactions/${id}`, formData);
+      const response = await api.put(`/transactions/${id}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
       return response.data;
     } else {
       const response = await api.put(`/transactions/${id}`, data);

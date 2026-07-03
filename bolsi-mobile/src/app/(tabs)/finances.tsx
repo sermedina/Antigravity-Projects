@@ -265,8 +265,8 @@ export default function FinancesScreen() {
                         acc.type === 'BANK'
                           ? 'bank'
                           : acc.type === 'CREDIT_CARD'
-                          ? 'credit-card'
-                          : 'cash-multiple'
+                            ? 'credit-card'
+                            : 'cash-multiple'
                       }
                       size={28}
                       iconColor={theme.colors.primary}
@@ -278,8 +278,8 @@ export default function FinancesScreen() {
                       {acc.type === 'BANK'
                         ? 'Banco'
                         : acc.type === 'CREDIT_CARD'
-                        ? 'Tarjeta de Crédito'
-                        : 'Efectivo'}
+                          ? 'Tarjeta de Crédito'
+                          : 'Efectivo'}
                     </Text>
                   </View>
                   <Text style={styles.accountBalance}>{formatCurrency(Number(acc.balance))}</Text>
@@ -327,15 +327,15 @@ export default function FinancesScreen() {
                         tx.type === 'INCOME'
                           ? 'arrow-up-circle'
                           : tx.type === 'EXPENSE'
-                          ? 'arrow-down-circle'
-                          : 'swap-horizontal'
+                            ? 'arrow-down-circle'
+                            : 'swap-horizontal'
                       }
                       iconColor={
                         tx.type === 'INCOME'
                           ? '#10B981'
                           : tx.type === 'EXPENSE'
-                          ? '#EF4444'
-                          : theme.colors.primary
+                            ? '#EF4444'
+                            : theme.colors.primary
                       }
                       size={24}
                     />
@@ -355,8 +355,8 @@ export default function FinancesScreen() {
                             tx.type === 'INCOME'
                               ? '#10B981'
                               : tx.type === 'EXPENSE'
-                              ? '#EF4444'
-                              : theme.colors.primary,
+                                ? '#EF4444'
+                                : theme.colors.primary,
                         },
                       ]}
                     >
@@ -686,8 +686,8 @@ export default function FinancesScreen() {
                         selectedTx.type === 'INCOME'
                           ? '#10B981'
                           : selectedTx.type === 'EXPENSE'
-                          ? '#EF4444'
-                          : theme.colors.primary,
+                            ? '#EF4444'
+                            : theme.colors.primary,
                       fontWeight: 'bold',
                     },
                   ]}
@@ -720,7 +720,7 @@ export default function FinancesScreen() {
                   <View style={styles.receiptWrapper}>
                     <Text style={styles.detailLabel}>Comprobante cargado:</Text>
                     <Image
-                      source={{ uri: `${IMAGE_BASE_URL}/${selectedTx.payment_receipt_image}` }}
+                      source={{ uri: `${IMAGE_BASE_URL}${selectedTx.payment_receipt_image}` }}
                       style={styles.receiptImage}
                       resizeMode="contain"
                     />

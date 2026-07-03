@@ -7,6 +7,12 @@ export class TransactionController {
   async create(req: Request, res: Response) {
     try {
       const userId = (req as any).user.id;
+
+      // If a file was uploaded by multer, set the payment_receipt_image path
+      if (req.file) {
+        req.body.payment_receipt_image = `/uploads/${req.file.filename}`;
+      }
+
       const result = await transactionService.createTransaction(userId, req.body);
       res.status(201).json(result);
     } catch (error: any) {
@@ -48,7 +54,7 @@ export class TransactionController {
     try {
       const userId = (req as any).user.id;
       const txId = parseInt(req.params.id as string, 10);
-      
+
       // If a file was uploaded by multer, set the payment_receipt_image path
       if (req.file) {
         req.body.payment_receipt_image = `/uploads/${req.file.filename}`;

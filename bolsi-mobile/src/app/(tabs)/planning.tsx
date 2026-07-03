@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, FlatList } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, FlatList, Platform } from 'react-native';
 import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, ProgressBar, Divider, HelperText } from 'react-native-paper';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { debtService } from '../../services/debt.service';
 import { investmentService } from '../../services/investment.service';
@@ -57,6 +58,8 @@ export default function PlanningScreen() {
   const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [contribModalVisible, setContribModalVisible] = useState(false);
+  const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+  const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
 
   // React Queries
   const { data: debts, refetch: refetchDebts, isLoading: loadingDebts } = useQuery({
@@ -433,7 +436,37 @@ export default function PlanningScreen() {
               control={debtControl}
               name="due_date"
               render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput mode="outlined" label="Fecha Límite (YYYY-MM-DD)" onBlur={onBlur} onChangeText={onChange} value={value} />
+                <View>
+                  <TouchableOpacity onPress={() => setShowDueDatePicker(true)}>
+                    <View pointerEvents="none">
+                      <TextInput
+                        mode="outlined"
+                        label="Fecha Límite (YYYY-MM-DD)"
+                        onBlur={onBlur}
+                        value={value || ''}
+                        right={<TextInput.Icon icon="calendar" />}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  {showDueDatePicker && Platform.OS !== 'web' && (
+                    <DateTimePicker
+                      value={value ? new Date(value + 'T12:00:00') : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        if (Platform.OS === 'android') {
+                          setShowDueDatePicker(false);
+                        }
+                        if (selectedDate) {
+                          const year = selectedDate.getFullYear();
+                          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                          const day = String(selectedDate.getDate()).padStart(2, '0');
+                          onChange(`${year}-${month}-${day}`);
+                        }
+                      }}
+                    />
+                  )}
+                </View>
               )}
             />
           </Dialog.Content>
@@ -537,7 +570,37 @@ export default function PlanningScreen() {
               control={goalControl}
               name="deadline"
               render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput mode="outlined" label="Fecha Límite (YYYY-MM-DD)" onBlur={onBlur} onChangeText={onChange} value={value} />
+                <View>
+                  <TouchableOpacity onPress={() => setShowDeadlinePicker(true)}>
+                    <View pointerEvents="none">
+                      <TextInput
+                        mode="outlined"
+                        label="Fecha Límite (YYYY-MM-DD)"
+                        onBlur={onBlur}
+                        value={value || ''}
+                        right={<TextInput.Icon icon="calendar" />}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  {showDeadlinePicker && Platform.OS !== 'web' && (
+                    <DateTimePicker
+                      value={value ? new Date(value + 'T12:00:00') : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        if (Platform.OS === 'android') {
+                          setShowDeadlinePicker(false);
+                        }
+                        if (selectedDate) {
+                          const year = selectedDate.getFullYear();
+                          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                          const day = String(selectedDate.getDate()).padStart(2, '0');
+                          onChange(`${year}-${month}-${day}`);
+                        }
+                      }}
+                    />
+                  )}
+                </View>
               )}
             />
           </Dialog.Content>

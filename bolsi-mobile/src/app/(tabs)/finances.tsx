@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, Modal, Image, TouchableOpacity, FlatList } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Modal, Image, TouchableOpacity, FlatList, Platform } from 'react-native';
 import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, Divider, HelperText } from 'react-native-paper';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { accountService } from '../../services/account.service';
 import { transactionService } from '../../services/transaction.service';
@@ -43,6 +44,7 @@ export default function FinancesScreen() {
   const [txDetailVisible, setTxDetailVisible] = useState(false);
   const [receiptImage, setReceiptImage] = useState<string | null>(null);
   const [txError, setTxError] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Filters for transactions
   const [txFilter, setTxFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'>('ALL');
@@ -625,14 +627,36 @@ export default function FinancesScreen() {
                 name="transaction_date"
                 render={({ field: { onChange, onBlur, value } }) => (
                   <View>
-                    <TextInput
-                      mode="outlined"
-                      label="Fecha (YYYY-MM-DD)"
-                      onBlur={onBlur}
-                      onChangeText={onChange}
-                      value={value}
-                      error={!!txErrors.transaction_date}
-                    />
+                    <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+                      <View pointerEvents="none">
+                        <TextInput
+                          mode="outlined"
+                          label="Fecha (YYYY-MM-DD)"
+                          onBlur={onBlur}
+                          value={value}
+                          error={!!txErrors.transaction_date}
+                          right={<TextInput.Icon icon="calendar" />}
+                        />
+                      </View>
+                    </TouchableOpacity>
+                    {showDatePicker && Platform.OS !== 'web' && (
+                      <DateTimePicker
+                        value={value ? new Date(value + 'T12:00:00') : new Date()}
+                        mode="date"
+                        display="default"
+                        onChange={(event, selectedDate) => {
+                          if (Platform.OS === 'android') {
+                            setShowDatePicker(false);
+                          }
+                          if (selectedDate) {
+                            const year = selectedDate.getFullYear();
+                            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(selectedDate.getDate()).padStart(2, '0');
+                            onChange(`${year}-${month}-${day}`);
+                          }
+                        }}
+                      />
+                    )}
                     {txErrors.transaction_date && (
                       <HelperText type="error" visible={true}>
                         {txErrors.transaction_date.message}

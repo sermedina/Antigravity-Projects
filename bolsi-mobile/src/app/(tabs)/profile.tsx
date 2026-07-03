@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, FlatList } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, FlatList, TouchableOpacity, Platform } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { Text, Card, Button, TextInput, IconButton, useTheme, ActivityIndicator, Portal, Dialog, Divider, List, Switch, HelperText, SegmentedButtons } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
@@ -71,6 +72,9 @@ export default function ProfileScreen() {
   const [passModalVisible, setPassModalVisible] = useState(false);
   const [accessModalVisible, setAccessModalVisible] = useState(false);
   const [reminderModalVisible, setReminderModalVisible] = useState(false);
+  const [showReminderDatePicker, setShowReminderDatePicker] = useState(false);
+  const [showReminderTimePicker, setShowReminderTimePicker] = useState(false);
+  const [tempReminderDate, setTempReminderDate] = useState<Date | null>(null);
 
   // Message states
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -526,7 +530,74 @@ export default function ProfileScreen() {
               control={reminderControl}
               name="reminder_date"
               render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput mode="outlined" label="Fecha y Hora (YYYY-MM-DDTHH:MM)" onBlur={onBlur} onChangeText={onChange} value={value} />
+                <View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setTempReminderDate(null);
+                      setShowReminderDatePicker(true);
+                    }}
+                  >
+                    <View pointerEvents="none">
+                      <TextInput
+                        mode="outlined"
+                        label="Fecha y Hora (YYYY-MM-DDTHH:MM)"
+                        onBlur={onBlur}
+                        value={value}
+                        right={<TextInput.Icon icon="calendar-clock" />}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  {showReminderDatePicker && Platform.OS !== 'web' && (
+                    <DateTimePicker
+                      value={value ? new Date(value) : new Date()}
+                      mode={Platform.OS === 'ios' ? 'datetime' : 'date'}
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        if (Platform.OS === 'android') {
+                          setShowReminderDatePicker(false);
+                        }
+                        if (selectedDate) {
+                          if (Platform.OS === 'ios') {
+                            const year = selectedDate.getFullYear();
+                            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(selectedDate.getDate()).padStart(2, '0');
+                            const hours = String(selectedDate.getHours()).padStart(2, '0');
+                            const minutes = String(selectedDate.getMinutes()).padStart(2, '0');
+                            onChange(`${year}-${month}-${day}T${hours}:${minutes}`);
+                          } else {
+                            setTempReminderDate(selectedDate);
+                            setShowReminderTimePicker(true);
+                          }
+                        }
+                      }}
+                    />
+                  )}
+                  {showReminderTimePicker && Platform.OS !== 'web' && (
+                    <DateTimePicker
+                      value={tempReminderDate || new Date()}
+                      mode="time"
+                      display="default"
+                      onChange={(event, selectedTime) => {
+                        if (Platform.OS === 'android') {
+                          setShowReminderTimePicker(false);
+                        }
+                        if (selectedTime && tempReminderDate) {
+                          const combined = new Date(tempReminderDate);
+                          combined.setHours(selectedTime.getHours());
+                          combined.setMinutes(selectedTime.getMinutes());
+                          
+                          const year = combined.getFullYear();
+                          const month = String(combined.getMonth() + 1).padStart(2, '0');
+                          const day = String(combined.getDate()).padStart(2, '0');
+                          const hours = String(combined.getHours()).padStart(2, '0');
+                          const minutes = String(combined.getMinutes()).padStart(2, '0');
+                          
+                          onChange(`${year}-${month}-${day}T${hours}:${minutes}`);
+                        }
+                      }}
+                    />
+                  )}
+                </View>
               )}
             />
           </Dialog.Content>

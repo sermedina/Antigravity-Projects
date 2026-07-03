@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, StyleSheet, ScrollView, RefreshControl, Linking } from 'react-native';
 import { Text, Card, Title, Paragraph, Button, useTheme, ActivityIndicator, Portal, Dialog, ProgressBar, Divider } from 'react-native-paper';
+import { WebView } from 'react-native-webview';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { contentService } from '../../services/content.service';
 import { EducationalContent } from '../../types';
@@ -11,6 +12,13 @@ export default function EducationScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedContent, setSelectedContent] = useState<EducationalContent | null>(null);
   const [detailVisible, setDetailVisible] = useState(false);
+
+  const youtubeId = useMemo(() => {
+    if (!selectedContent?.media_url) return null;
+    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+    const match = selectedContent.media_url.match(regExp);
+    return (match && match[2].length === 11) ? match[2] : null;
+  }, [selectedContent]);
 
   // Queries
   const { data: contents, refetch: refetchContents, isLoading: loadingContents } = useQuery({
@@ -86,8 +94,8 @@ export default function EducationScreen() {
                         item.type === 'ARTICLE'
                           ? 'newspaper-variant-outline'
                           : item.type === 'VIDEO'
-                          ? 'video-outline'
-                          : 'school-outline'
+                            ? 'video-outline'
+                            : 'school-outline'
                       }
                       size={32}
                       color={theme.colors.primary}
@@ -126,6 +134,36 @@ export default function EducationScreen() {
                 {selectedContent?.type === 'ARTICLE' ? 'Artículo Educativo' : selectedContent?.type === 'VIDEO' ? 'Video Instructivo' : 'Curso Financiero'}
               </Text>
               <Divider style={styles.divider} />
+
+              {detailVisible && youtubeId && (
+                <View style={styles.videoContainer}>
+                  <WebView
+                    style={styles.webview}
+                    javaScriptEnabled={true}
+                    domStorageEnabled={true}
+                    allowsFullscreenVideo={true}
+                    originWhitelist={['*']}
+                    source={{
+                      uri: `https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=0&mute=0&controls=1&modestbranding=1&rel=0`,
+                      headers: {
+                        Referer: 'https://youtube.com'
+                      }
+                    }}
+                  />
+                </View>
+              )}
+
+              {selectedContent?.media_url && !youtubeId && (
+                <Button
+                  mode="outlined"
+                  icon="open-in-new"
+                  style={{ marginBottom: 12 }}
+                  onPress={() => Linking.openURL(selectedContent.media_url!)}
+                >
+                  Ver Recurso Externo
+                </Button>
+              )}
+
               <Paragraph style={styles.bodyText}>
                 {selectedContent?.body || 'Cargando contenido...'}
               </Paragraph>
@@ -225,4 +263,14 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  videoContainer: {
+    height: 200,
+    width: '100%',
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#000',
+  },
+  webview: {
+    flex: 1,
+  }
 });

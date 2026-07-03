@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: '#E2E8F0',
+    backgroundColor: '#e2e8f069',
     marginRight: 8,
   },
   imagePickerWrapper: {

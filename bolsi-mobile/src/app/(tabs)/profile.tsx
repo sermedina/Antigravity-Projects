@@ -585,13 +585,13 @@ export default function ProfileScreen() {
                           const combined = new Date(tempReminderDate);
                           combined.setHours(selectedTime.getHours());
                           combined.setMinutes(selectedTime.getMinutes());
-                          
+
                           const year = combined.getFullYear();
                           const month = String(combined.getMonth() + 1).padStart(2, '0');
                           const day = String(combined.getDate()).padStart(2, '0');
                           const hours = String(combined.getHours()).padStart(2, '0');
                           const minutes = String(combined.getMinutes()).padStart(2, '0');
-                          
+
                           onChange(`${year}-${month}-${day}T${hours}:${minutes}`);
                         }
                       }}
@@ -664,7 +664,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   settingsSection: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#615f5fff',
     borderRadius: 12,
     elevation: 1,
     overflow: 'hidden',

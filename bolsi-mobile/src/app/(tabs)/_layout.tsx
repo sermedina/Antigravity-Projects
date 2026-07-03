@@ -24,7 +24,7 @@ export default function TabsLayout() {
           backgroundColor: theme.colors.surface,
           borderTopWidth: 1,
           borderTopColor: theme.colors.background,
-          height: Platform.OS === 'ios' ? 88 : 64,
+          height: Platform.OS === 'ios' ? 100 : 120,
           paddingBottom: Platform.OS === 'ios' ? 24 : 10,
           paddingTop: 10,
         },
@@ -43,10 +43,10 @@ export default function TabsLayout() {
           headerTitle: 'Mi Bolsi',
           tabBarLabel: 'Inicio',
           tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons 
-              name={focused ? "home" : "home-outline"} 
-              size={size} 
-              color={color} 
+            <MaterialCommunityIcons
+              name={focused ? "home" : "home-outline"}
+              size={size}
+              color={color}
             />
           ),
         }}
@@ -58,10 +58,10 @@ export default function TabsLayout() {
           headerTitle: 'Cuentas y Movimientos',
           tabBarLabel: 'Finanzas',
           tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons 
-              name={focused ? "wallet" : "wallet-outline"} 
-              size={size} 
-              color={color} 
+            <MaterialCommunityIcons
+              name={focused ? "wallet" : "wallet-outline"}
+              size={size}
+              color={color}
             />
           ),
         }}
@@ -73,10 +73,10 @@ export default function TabsLayout() {
           headerTitle: 'Deudas, Metas e Inversiones',
           tabBarLabel: 'Planificación',
           tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons 
-              name={focused ? "chart-timeline-variant" : "chart-timeline-variant-shimmer"} 
-              size={size} 
-              color={color} 
+            <MaterialCommunityIcons
+              name={focused ? "chart-timeline-variant" : "chart-timeline-variant-shimmer"}
+              size={size}
+              color={color}
             />
           ),
         }}
@@ -88,10 +88,10 @@ export default function TabsLayout() {
           headerTitle: 'Biblioteca Financiera',
           tabBarLabel: 'Educación',
           tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons 
-              name={focused ? "book-open-page-variant" : "book-open-page-variant-outline"} 
-              size={size} 
-              color={color} 
+            <MaterialCommunityIcons
+              name={focused ? "book-open-page-variant" : "book-open-page-variant-outline"}
+              size={size}
+              color={color}
             />
           ),
         }}
@@ -103,10 +103,10 @@ export default function TabsLayout() {
           headerTitle: 'Perfil y Configuración',
           tabBarLabel: 'Perfil',
           tabBarIcon: ({ color, size, focused }) => (
-            <MaterialCommunityIcons 
-              name={focused ? "account" : "account-outline"} 
-              size={size} 
-              color={color} 
+            <MaterialCommunityIcons
+              name={focused ? "account" : "account-outline"}
+              size={size}
+              color={color}
             />
           ),
         }}

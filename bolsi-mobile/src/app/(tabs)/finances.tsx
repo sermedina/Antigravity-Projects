@@ -28,6 +28,21 @@ const transactionSchema = z.object({
   description: z.string().optional(),
   transaction_date: z.string().min(1, 'La fecha es requerida'),
   destinationAccountId: z.coerce.number().optional(),
+}).superRefine((data, ctx) => {
+  if (data.type !== 'TRANSFER' && (data.categoryId === undefined || data.categoryId === null || isNaN(data.categoryId))) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'La categoría es obligatoria',
+      path: ['categoryId'],
+    });
+  }
+  if (data.type === 'TRANSFER' && !data.destinationAccountId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'La cuenta de destino es obligatoria',
+      path: ['destinationAccountId'],
+    });
+  }
 });
 
 export default function FinancesScreen() {
@@ -212,12 +227,12 @@ export default function FinancesScreen() {
     setAccountModalVisible(true);
   };
 
-  const openCreateTx = () => {
+  const openCreateTx = (type: 'EXPENSE' | 'INCOME' | 'TRANSFER' = 'EXPENSE') => {
     resetTxForm({
       accountId: accounts && accounts.length > 0 ? accounts[0].id : undefined,
-      categoryId: categories && categories.length > 0 ? categories[0].id : undefined,
+      categoryId: undefined,
       amount: 0,
-      type: 'EXPENSE',
+      type: type,
       description: '',
       transaction_date: new Date().toISOString().split('T')[0],
       destinationAccountId: undefined,
@@ -374,12 +389,22 @@ export default function FinancesScreen() {
       )}
 
       {/* FAB to add account or transaction */}
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        color="#FFFFFF"
-        onPress={activeSection === 'accounts' ? openCreateAccount : openCreateTx}
-      />
+      {activeSection === 'accounts' && (
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          color="#FFFFFF"
+          onPress={openCreateAccount}
+        />
+      )}
+      {activeSection === 'transactions' && txFilter !== 'ALL' && (
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          color="#FFFFFF"
+          onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'TRANSFER')}
+        />
+      )}
 
       {/* MODAL: CREATE / EDIT ACCOUNT */}
       <Portal>
@@ -452,7 +477,13 @@ export default function FinancesScreen() {
       {/* MODAL: CREATE TRANSACTION */}
       <Portal>
         <Dialog visible={txModalVisible} onDismiss={() => setTxModalVisible(false)}>
-          <Dialog.Title>Nuevo Movimiento</Dialog.Title>
+          <Dialog.Title>
+            {txTypeWatch === 'EXPENSE'
+              ? 'Nuevo Gasto'
+              : txTypeWatch === 'INCOME'
+                ? 'Nuevo Ingreso'
+                : 'Nueva Transferencia'}
+          </Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.dialogScrollContent}>
               {txError && (
@@ -460,24 +491,6 @@ export default function FinancesScreen() {
                   <Text style={{ color: theme.colors.error, fontWeight: 'bold' }}>{txError}</Text>
                 </View>
               )}
-
-              <Controller
-                control={txControl}
-                name="type"
-                render={({ field: { onChange, value } }) => (
-                  <SegmentedButtons
-                    value={value}
-                    onValueChange={(val) => {
-                      onChange(val);
-                    }}
-                    buttons={[
-                      { value: 'EXPENSE', label: 'Gasto' },
-                      { value: 'INCOME', label: 'Ingreso' },
-                      { value: 'TRANSFER', label: 'Transf.' },
-                    ]}
-                  />
-                )}
-              />
 
               <Controller
                 control={txControl}

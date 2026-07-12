@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, FlatList, Platform } from 'react-native';
-import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, ProgressBar, Divider, HelperText } from 'react-native-paper';
+import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, ProgressBar, Divider, HelperText, Menu } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { debtService } from '../../services/debt.service';
@@ -20,6 +20,7 @@ const debtSchema = z.object({
   total_amount: z.coerce.number().positive('El monto debe ser mayor a 0'),
   debt_type: z.enum(['I_OWE', 'THEY_OWE_ME']),
   interest_rate: z.coerce.number().min(0, 'El interés no puede ser negativo'),
+  urgency: z.coerce.number().int().min(1, 'La urgencia debe ser mínimo 1').max(10, 'La urgencia debe ser máximo 10'),
   due_date: z.string().optional(),
 });
 
@@ -52,6 +53,7 @@ export default function PlanningScreen() {
   const [debtModalVisible, setDebtModalVisible] = useState(false);
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [payModalVisible, setPayModalVisible] = useState(false);
+  const [urgencyMenuVisible, setUrgencyMenuVisible] = useState(false);
 
   const [investmentModalVisible, setInvestmentModalVisible] = useState(false);
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
@@ -153,7 +155,7 @@ export default function PlanningScreen() {
   // Forms configurations
   const { control: debtControl, handleSubmit: handleDebtSubmit, reset: resetDebtForm } = useForm({
     resolver: zodResolver(debtSchema),
-    defaultValues: { counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, due_date: '' }
+    defaultValues: { counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, urgency: 5, due_date: '' }
   });
 
   const { control: invControl, handleSubmit: handleInvSubmit, reset: resetInvForm } = useForm({
@@ -215,6 +217,7 @@ export default function PlanningScreen() {
       total_amount: Number(d.total_amount),
       debt_type: d.debt_type,
       interest_rate: Number(d.interest_rate),
+      urgency: Number(d.urgency || 5),
       due_date: d.due_date ? new Date(d.due_date).toISOString().split('T')[0] : '',
     });
     setDebtModalVisible(true);
@@ -266,6 +269,11 @@ export default function PlanningScreen() {
     setContribModalVisible(true);
   };
 
+  const sortedDebts = useMemo(() => {
+    if (!debts) return [];
+    return debts.slice().sort((a, b) => (b.urgency || 5) - (a.urgency || 5));
+  }, [debts]);
+
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
   };
@@ -294,15 +302,23 @@ export default function PlanningScreen() {
         {isMainLoading ? (
           <ActivityIndicator style={styles.loader} size="large" />
         ) : activeSection === 'debts' ? (
-          debts?.map((d) => {
+          sortedDebts?.map((d) => {
             const paid = Number(d.total_amount) - Number(d.remaining_amount);
             const progress = Number(d.total_amount) > 0 ? paid / Number(d.total_amount) : 0;
+            const urgency = d.urgency || 5;
+            const urgencyLabel = urgency >= 8 ? 'Alta' : urgency >= 4 ? 'Media' : 'Baja';
+            const urgencyColor = urgency >= 8 ? '#EF4444' : urgency >= 4 ? '#F59E0B' : '#10B981';
             return (
               <Card key={d.id} style={styles.card} onPress={() => openDebtEdit(d)}>
                 <Card.Content>
                   <View style={styles.rowBetween}>
-                    <View>
-                      <Text style={styles.cardTitle}>{d.counterparty_name}</Text>
+                    <View style={styles.flex1}>
+                      <View style={styles.urgencyRow}>
+                        <Text style={styles.cardTitle}>{d.counterparty_name}</Text>
+                        <View style={[styles.urgencyBadge, { backgroundColor: urgencyColor }]}>
+                          <Text style={styles.urgencyBadgeText}>{urgencyLabel} {urgency}/10</Text>
+                        </View>
+                      </View>
                       <Text style={styles.cardSub}>
                         {d.debt_type === 'I_OWE' ? 'Debo a esta persona' : 'Me deben a mí'} • Interés: {d.interest_rate}%
                       </Text>
@@ -395,7 +411,7 @@ export default function PlanningScreen() {
           onPress={() => {
             if (activeSection === 'debts') {
               setEditingDebt(null);
-              resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, due_date: '' });
+              resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, urgency: 5, due_date: '' });
               setDebtModalVisible(true);
             } else if (activeSection === 'investments') {
               setEditingInvestment(null);
@@ -448,6 +464,41 @@ export default function PlanningScreen() {
               name="interest_rate"
               render={({ field: { onChange, onBlur, value } }) => (
                 <TextInput mode="outlined" label="Interés (%)" keyboardType="numeric" onBlur={onBlur} onChangeText={onChange} value={value === 0 ? '' : String(value)} />
+              )}
+            />
+            <Controller
+              control={debtControl}
+              name="urgency"
+              render={({ field: { onChange, value } }) => (
+                <View>
+                  <Menu
+                    visible={urgencyMenuVisible}
+                    onDismiss={() => setUrgencyMenuVisible(false)}
+                    anchor={
+                      <TouchableOpacity onPress={() => setUrgencyMenuVisible(true)}>
+                        <View pointerEvents="none">
+                          <TextInput
+                            mode="outlined"
+                            label="Nivel de Urgencia (1-10)"
+                            value={value ? `${value}/10` : 'Seleccione Urgencia'}
+                            right={<TextInput.Icon icon="chevron-down" />}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    }
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                      <Menu.Item
+                        key={num}
+                        onPress={() => {
+                          onChange(num);
+                          setUrgencyMenuVisible(false);
+                        }}
+                        title={`${num} - ${num >= 8 ? 'Alta 🔴' : num >= 4 ? 'Media 🟡' : 'Baja 🟢'}`}
+                      />
+                    ))}
+                  </Menu>
+                </View>
               )}
             />
             <Controller
@@ -746,5 +797,21 @@ const styles = StyleSheet.create({
   },
   actionButton: {
     borderRadius: 8,
+  },
+  urgencyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  urgencyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  urgencyBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });

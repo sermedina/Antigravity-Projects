@@ -67,7 +67,8 @@ export class DebtService {
   async getDebts(userId: number) {
     return await this.debtRepo.find({
       where: { user: { id: userId } },
-      relations: { payments: true }
+      relations: { payments: true },
+      order: { urgency: 'DESC' }
     });
   }
 
@@ -87,6 +88,7 @@ export class DebtService {
     if (data.debt_type !== undefined) debt.debt_type = data.debt_type;
     if (data.due_date !== undefined) debt.due_date = data.due_date;
     if (data.interest_rate !== undefined) debt.interest_rate = data.interest_rate;
+    if (data.urgency !== undefined) debt.urgency = data.urgency;
 
     if (data.total_amount !== undefined) {
       const oldTotal = Number(debt.total_amount);

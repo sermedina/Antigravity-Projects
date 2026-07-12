@@ -86,6 +86,7 @@ export interface Debt {
   debt_type: 'I_OWE' | 'THEY_OWE_ME';
   due_date?: string;
   interest_rate: number;
+  urgency: number;
   payments?: DebtPayment[];
 }
 

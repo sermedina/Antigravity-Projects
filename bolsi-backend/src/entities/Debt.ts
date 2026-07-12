@@ -29,6 +29,9 @@ export class Debt {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
   interest_rate: number;
 
+  @Column({ type: 'int', default: 5 })
+  urgency: number;
+
   @OneToMany(() => DebtPayment, (payment: DebtPayment) => payment.debt)
   payments: DebtPayment[];
 }

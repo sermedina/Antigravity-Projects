@@ -137,15 +137,15 @@ export class UserService {
   async createSharedAccess(userId: number, guestEmail: string, accessLevel: string = 'READ_ONLY') {
     const sharedRepo = AppDataSource.getRepository(SharedAccess);
     const owner = await this.userRepo.findOneBy({ id: userId });
-    if (!owner) throw new Error('Owner user not found');
+    if (!owner) throw new Error('Usuario propietario no encontrado');
 
     const guest = await this.userRepo.findOneBy({ email: guestEmail });
-    if (!guest) throw new Error('Guest user not found with that email');
+    if (!guest) throw new Error('Usuario no encontrado con ese correo');
 
-    if (owner.id === guest.id) throw new Error('You cannot share access with yourself');
+    if (owner.id === guest.id) throw new Error('No puedes compartir acceso contigo mismo');
 
     const existing = await sharedRepo.findOneBy({ owner: { id: owner.id }, guest: { id: guest.id } });
-    if (existing) throw new Error('Access is already shared with this user');
+    if (existing) throw new Error('El acceso ya está compartido con este usuario');
 
     const sharedAccess = sharedRepo.create({
       owner,

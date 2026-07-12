@@ -11,6 +11,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { IMAGE_BASE_URL } from '../../services/api';
 import { Account, Transaction } from '../../types';
+import { useAuth } from '../../context/AuthContext';
+import { AccountSwitcher } from '../../components/AccountSwitcher';
 
 // Zod schemas for forms
 const accountSchema = z.object({
@@ -47,6 +49,7 @@ const transactionSchema = z.object({
 
 export default function FinancesScreen() {
   const theme = useTheme();
+  const { activeUserId, activeAccessLevel } = useAuth();
   const [activeSection, setActiveSection] = useState<'accounts' | 'transactions'>('accounts');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -66,12 +69,12 @@ export default function FinancesScreen() {
 
   // React Queries
   const { data: accounts, refetch: refetchAccounts, isLoading: loadingAccounts } = useQuery({
-    queryKey: ['accounts'],
+    queryKey: ['accounts', activeUserId],
     queryFn: () => accountService.getAccounts(),
   });
 
   const { data: transactions, refetch: refetchTransactions, isLoading: loadingTx } = useQuery({
-    queryKey: ['transactions'],
+    queryKey: ['transactions', activeUserId],
     queryFn: () => transactionService.getTransactions(),
   });
 
@@ -211,6 +214,7 @@ export default function FinancesScreen() {
   };
 
   const openEditAccount = (acc: Account) => {
+    if (activeAccessLevel === 'READ_ONLY') return;
     setEditingAccount(acc);
     resetAccountForm({
       name: acc.name,
@@ -254,6 +258,7 @@ export default function FinancesScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <AccountSwitcher />
       <View style={styles.headerToggle}>
         <SegmentedButtons
           value={activeSection}
@@ -389,7 +394,7 @@ export default function FinancesScreen() {
       )}
 
       {/* FAB to add account or transaction */}
-      {activeSection === 'accounts' && (
+      {activeSection === 'accounts' && activeAccessLevel !== 'READ_ONLY' && (
         <FAB
           icon="plus"
           style={[styles.fab, { backgroundColor: theme.colors.primary }]}
@@ -397,7 +402,7 @@ export default function FinancesScreen() {
           onPress={openCreateAccount}
         />
       )}
-      {activeSection === 'transactions' && txFilter !== 'ALL' && (
+      {activeSection === 'transactions' && txFilter !== 'ALL' && activeAccessLevel !== 'READ_ONLY' && (
         <FAB
           icon="plus"
           style={[styles.fab, { backgroundColor: theme.colors.primary }]}
@@ -460,7 +465,7 @@ export default function FinancesScreen() {
             />
           </Dialog.Content>
           <Dialog.Actions>
-            {editingAccount && (
+            {editingAccount && activeAccessLevel !== 'READ_ONLY' && (
               <Button
                 textColor={theme.colors.error}
                 onPress={() => deleteAccountMutation.mutate(editingAccount.id)}
@@ -469,7 +474,9 @@ export default function FinancesScreen() {
               </Button>
             )}
             <Button onPress={() => setAccountModalVisible(false)}>Cancelar</Button>
-            <Button onPress={handleAccountSubmit(onAccountSubmit)}>Guardar</Button>
+            {activeAccessLevel !== 'READ_ONLY' && (
+              <Button onPress={handleAccountSubmit(onAccountSubmit)}>Guardar</Button>
+            )}
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -767,7 +774,7 @@ export default function FinancesScreen() {
             )}
           </Dialog.Content>
           <Dialog.Actions>
-            {selectedTx && (
+            {selectedTx && activeAccessLevel !== 'READ_ONLY' && (
               <Button
                 textColor={theme.colors.error}
                 onPress={() => deleteTxMutation.mutate(selectedTx.id)}

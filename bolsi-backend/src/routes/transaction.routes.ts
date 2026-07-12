@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { TransactionController } from '../controllers/transaction.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
+import { resolveActiveUser } from '../middlewares/shared-access.middleware';
 import { authorizeRoles } from '../middlewares/role.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { createTransactionSchema, updateTransactionSchema } from '../validators/transaction.validator';
@@ -16,7 +17,7 @@ if (!fs.existsSync(uploadPath)) {
 }
 
 
-router.use(authenticateJWT); // Protect all transaction routes
+router.use(authenticateJWT, resolveActiveUser); // Protect all transaction routes
 
 const storage = multer.diskStorage({
     destination: uploadPath,

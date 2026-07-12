@@ -20,12 +20,21 @@ const api = axios.create({
   },
 });
 
+let activeSharedOwnerId: string | null = null;
+
+export const setActiveSharedOwnerId = (id: string | null) => {
+  activeSharedOwnerId = id;
+};
+
 api.interceptors.request.use(
   async (config) => {
     try {
       const token = await SecureStore.getItemAsync('user_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
+      }
+      if (activeSharedOwnerId) {
+        config.headers['x-shared-owner-id'] = activeSharedOwnerId;
       }
     } catch (e) {
       console.warn('No se pudo recuperar el token de SecureStore', e);

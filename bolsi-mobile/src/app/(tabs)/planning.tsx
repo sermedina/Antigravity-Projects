@@ -11,6 +11,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Debt, Investment, Goal } from '../../types';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useAuth } from '../../context/AuthContext';
+import { AccountSwitcher } from '../../components/AccountSwitcher';
 
 // Form validation schemas
 const debtSchema = z.object({
@@ -42,6 +44,7 @@ const actionSchema = z.object({
 
 export default function PlanningScreen() {
   const theme = useTheme();
+  const { activeUserId, activeAccessLevel } = useAuth();
   const [activeSection, setActiveSection] = useState<'debts' | 'investments' | 'goals'>('debts');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -63,17 +66,17 @@ export default function PlanningScreen() {
 
   // React Queries
   const { data: debts, refetch: refetchDebts, isLoading: loadingDebts } = useQuery({
-    queryKey: ['debts'],
+    queryKey: ['debts', activeUserId],
     queryFn: () => debtService.getDebts(),
   });
 
   const { data: investments, refetch: refetchInvestments, isLoading: loadingInvestments } = useQuery({
-    queryKey: ['investments'],
+    queryKey: ['investments', activeUserId],
     queryFn: () => investmentService.getInvestments(),
   });
 
   const { data: goals, refetch: refetchGoals, isLoading: loadingGoals } = useQuery({
-    queryKey: ['goals'],
+    queryKey: ['goals', activeUserId],
     queryFn: () => goalService.getGoals(),
   });
 
@@ -205,6 +208,7 @@ export default function PlanningScreen() {
 
   // Open modals setup
   const openDebtEdit = (d: Debt) => {
+    if (activeAccessLevel === 'READ_ONLY') return;
     setEditingDebt(d);
     resetDebtForm({
       counterparty_name: d.counterparty_name,
@@ -217,12 +221,14 @@ export default function PlanningScreen() {
   };
 
   const openDebtPay = (d: Debt) => {
+    if (activeAccessLevel === 'READ_ONLY') return;
     setEditingDebt(d);
     resetActionForm({ amount: 0 });
     setPayModalVisible(true);
   };
 
   const openInvEdit = (inv: Investment) => {
+    if (activeAccessLevel === 'READ_ONLY') return;
     setEditingInvestment(inv);
     resetInvForm({
       name: inv.name,
@@ -234,6 +240,7 @@ export default function PlanningScreen() {
   };
 
   const openInvTx = (inv: Investment, type: typeof invTxType) => {
+    if (activeAccessLevel === 'READ_ONLY') return;
     setEditingInvestment(inv);
     setInvTxType(type);
     resetActionForm({ amount: 0 });
@@ -241,6 +248,7 @@ export default function PlanningScreen() {
   };
 
   const openGoalEdit = (g: Goal) => {
+    if (activeAccessLevel === 'READ_ONLY') return;
     setEditingGoal(g);
     resetGoalForm({
       name: g.name,
@@ -252,6 +260,7 @@ export default function PlanningScreen() {
   };
 
   const openGoalContrib = (g: Goal) => {
+    if (activeAccessLevel === 'READ_ONLY') return;
     setEditingGoal(g);
     resetActionForm({ amount: 0 });
     setContribModalVisible(true);
@@ -265,6 +274,7 @@ export default function PlanningScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <AccountSwitcher />
       <View style={styles.headerToggle}>
         <SegmentedButtons
           value={activeSection}
@@ -297,12 +307,14 @@ export default function PlanningScreen() {
                         {d.debt_type === 'I_OWE' ? 'Debo a esta persona' : 'Me deben a mí'} • Interés: {d.interest_rate}%
                       </Text>
                     </View>
-                    <IconButton
-                      icon="cash-register"
-                      iconColor={theme.colors.primary}
-                      size={24}
-                      onPress={() => openDebtPay(d)}
-                    />
+                    {activeAccessLevel !== 'READ_ONLY' && (
+                      <IconButton
+                        icon="cash-register"
+                        iconColor={theme.colors.primary}
+                        size={24}
+                        onPress={() => openDebtPay(d)}
+                      />
+                    )}
                   </View>
                   <ProgressBar progress={progress} color={d.debt_type === 'I_OWE' ? '#EF4444' : '#10B981'} style={styles.progress} />
                   <View style={styles.rowBetween}>
@@ -326,17 +338,19 @@ export default function PlanningScreen() {
                   </View>
                   <Text style={styles.invValue}>{formatCurrency(Number(inv.current_value))}</Text>
                 </View>
-                <View style={[styles.row, styles.invActions]}>
-                  <Button compact mode="outlined" icon="plus" onPress={() => openInvTx(inv, 'CONTRIBUTION')}>
-                    Aportar
-                  </Button>
-                  <Button compact mode="outlined" icon="minus" onPress={() => openInvTx(inv, 'WITHDRAWAL')}>
-                    Retirar
-                  </Button>
-                  <Button compact mode="outlined" icon="trending-up" onPress={() => openInvTx(inv, 'RETURN')}>
-                    Rendimiento
-                  </Button>
-                </View>
+                {activeAccessLevel !== 'READ_ONLY' && (
+                  <View style={[styles.row, styles.invActions]}>
+                    <Button compact mode="outlined" icon="plus" onPress={() => openInvTx(inv, 'CONTRIBUTION')}>
+                      Aportar
+                    </Button>
+                    <Button compact mode="outlined" icon="minus" onPress={() => openInvTx(inv, 'WITHDRAWAL')}>
+                      Retirar
+                    </Button>
+                    <Button compact mode="outlined" icon="trending-up" onPress={() => openInvTx(inv, 'RETURN')}>
+                      Rendimiento
+                    </Button>
+                  </View>
+                )}
               </Card.Content>
             </Card>
           ))
@@ -351,12 +365,14 @@ export default function PlanningScreen() {
                       <Text style={styles.cardTitle}>{g.name}</Text>
                       {g.description && <Text style={styles.cardSub}>{g.description}</Text>}
                     </View>
-                    <IconButton
-                      icon="piggy-bank"
-                      iconColor={theme.colors.primary}
-                      size={24}
-                      onPress={() => openGoalContrib(g)}
-                    />
+                    {activeAccessLevel !== 'READ_ONLY' && (
+                      <IconButton
+                        icon="piggy-bank"
+                        iconColor={theme.colors.primary}
+                        size={24}
+                        onPress={() => openGoalContrib(g)}
+                      />
+                    )}
                   </View>
                   <ProgressBar progress={progress} color="#D97706" style={styles.progress} />
                   <View style={styles.rowBetween}>
@@ -371,26 +387,28 @@ export default function PlanningScreen() {
       </ScrollView>
 
       {/* FAB to Add item depending on tab */}
-      <FAB
-        icon="plus"
-        style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-        color="#FFFFFF"
-        onPress={() => {
-          if (activeSection === 'debts') {
-            setEditingDebt(null);
-            resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, due_date: '' });
-            setDebtModalVisible(true);
-          } else if (activeSection === 'investments') {
-            setEditingInvestment(null);
-            resetInvForm({ name: '', asset_type: 'STOCK', platform: '', current_value: 0 });
-            setInvestmentModalVisible(true);
-          } else {
-            setEditingGoal(null);
-            resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '' });
-            setGoalModalVisible(true);
-          }
-        }}
-      />
+      {activeAccessLevel !== 'READ_ONLY' && (
+        <FAB
+          icon="plus"
+          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
+          color="#FFFFFF"
+          onPress={() => {
+            if (activeSection === 'debts') {
+              setEditingDebt(null);
+              resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, due_date: '' });
+              setDebtModalVisible(true);
+            } else if (activeSection === 'investments') {
+              setEditingInvestment(null);
+              resetInvForm({ name: '', asset_type: 'STOCK', platform: '', current_value: 0 });
+              setInvestmentModalVisible(true);
+            } else {
+              setEditingGoal(null);
+              resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '' });
+              setGoalModalVisible(true);
+            }
+          }}
+        />
+      )}
 
       {/* MODAL: CREATE/EDIT DEBT */}
       <Portal>

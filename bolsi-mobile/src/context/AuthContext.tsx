@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService } from '../services/auth.service';
 import { userService } from '../services/user.service';
 import { User } from '../types';
+import { setActiveSharedOwnerId } from '../services/api';
 
 interface AuthContextType {
   user: User | null;
@@ -16,6 +17,10 @@ interface AuthContextType {
   resetPassword: (token: string, newPass: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  activeUserId: number | null;
+  activeAccessLevel: 'OWNER' | 'READ_ONLY' | 'READ_WRITE';
+  activeUserEmail: string | null;
+  setActiveContext: (userId: number | null, level: 'OWNER' | 'READ_ONLY' | 'READ_WRITE', email: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,6 +29,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Shared access states
+  const [activeUserId, setActiveUserIdState] = useState<number | null>(null);
+  const [activeAccessLevel, setActiveAccessLevel] = useState<'OWNER' | 'READ_ONLY' | 'READ_WRITE'>('OWNER');
+  const [activeUserEmail, setActiveUserEmail] = useState<string | null>(null);
+
+  const setActiveContext = (userId: number | null, level: 'OWNER' | 'READ_ONLY' | 'READ_WRITE', email: string | null) => {
+    setActiveUserIdState(userId);
+    setActiveAccessLevel(level);
+    setActiveUserEmail(email);
+    setActiveSharedOwnerId(userId ? userId.toString() : null);
+  };
 
   useEffect(() => {
     const loadSession = async () => {
@@ -60,6 +77,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await AsyncStorage.removeItem('user_data');
     setToken(null);
     setUser(null);
+    setActiveContext(null, 'OWNER', null);
   };
 
   const login = async (username: string, pass: string) => {
@@ -124,7 +142,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         requestRecovery,
         resetPassword,
         logout,
-        refreshProfile
+        refreshProfile,
+        activeUserId,
+        activeAccessLevel,
+        activeUserEmail,
+        setActiveContext
       }}
     >
       {children}

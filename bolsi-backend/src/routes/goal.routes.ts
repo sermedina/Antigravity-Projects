@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { GoalController } from '../controllers/goal.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
+import { resolveActiveUser } from '../middlewares/shared-access.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { createGoalSchema, contributeGoalSchema, updateGoalSchema } from '../validators/goal.validator';
 
 const router = Router();
 const goalController = new GoalController();
 
-router.use(authenticateJWT);
+router.use(authenticateJWT, resolveActiveUser);
 
 router.post('/', validate(createGoalSchema), goalController.create);
 router.post('/:goalId/contribute', validate(contributeGoalSchema), goalController.contribute);

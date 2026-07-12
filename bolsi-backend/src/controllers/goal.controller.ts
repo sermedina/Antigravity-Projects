@@ -6,7 +6,7 @@ const goalService = new GoalService();
 export class GoalController {
   async create(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const result = await goalService.createGoal(userId, req.body);
       res.status(201).json(result);
     } catch (error: any) {
@@ -16,7 +16,7 @@ export class GoalController {
 
   async contribute(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const goalId = Number(req.params.goalId);
       const { amount, transaction_id } = req.body;
       const result = await goalService.contribute(userId, goalId, amount, transaction_id);
@@ -28,7 +28,7 @@ export class GoalController {
 
   async getAll(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const result = await goalService.getGoals(userId);
       res.json(result);
     } catch (error: any) {
@@ -38,7 +38,7 @@ export class GoalController {
 
   async remove(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const goalId = Number(req.params.goalId);
       const result = await goalService.deleteGoal(userId, goalId);
       res.json(result);
@@ -49,7 +49,7 @@ export class GoalController {
 
   async getById(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const goalId = parseInt(req.params.id as string, 10);
       const result = await goalService.getGoalById(userId, goalId);
       res.json(result);
@@ -60,7 +60,7 @@ export class GoalController {
 
   async update(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const goalId = parseInt(req.params.id as string, 10);
       const result = await goalService.updateGoal(userId, goalId, req.body);
       res.json(result);

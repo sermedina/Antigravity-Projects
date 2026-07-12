@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { AccountController } from '../controllers/account.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
+import { resolveActiveUser } from '../middlewares/shared-access.middleware';
 import { validate } from '../middlewares/validate.middleware';
 import { createAccountSchema, updateAccountSchema } from '../validators/account.validator';
 
 const router = Router();
 const accountController = new AccountController();
 
-router.use(authenticateJWT);
+router.use(authenticateJWT, resolveActiveUser);
 
 router.get('/', accountController.getAll);
 router.get('/:id', accountController.getById);

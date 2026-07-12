@@ -10,37 +10,38 @@ import { goalService } from '../../services/goal.service';
 import { LineChart, PieChart } from 'react-native-chart-kit';
 import { useAuth } from '../../context/AuthContext';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { AccountSwitcher } from '../../components/AccountSwitcher';
 
 const screenWidth = Dimensions.get('window').width;
 
 export default function HomeScreen() {
   const theme = useTheme();
-  const { user } = useAuth();
+  const { user, activeUserId } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
   // Consultar todos los datos requeridos mediante React Query
   const { data: accounts, refetch: refetchAccounts, isLoading: loadingAccounts } = useQuery({
-    queryKey: ['accounts'],
+    queryKey: ['accounts', activeUserId],
     queryFn: () => accountService.getAccounts(),
   });
 
   const { data: transactions, refetch: refetchTransactions, isLoading: loadingTx } = useQuery({
-    queryKey: ['transactions'],
+    queryKey: ['transactions', activeUserId],
     queryFn: () => transactionService.getTransactions(),
   });
 
   const { data: debts, refetch: refetchDebts, isLoading: loadingDebts } = useQuery({
-    queryKey: ['debts'],
+    queryKey: ['debts', activeUserId],
     queryFn: () => debtService.getDebts(),
   });
 
   const { data: investments, refetch: refetchInvestments, isLoading: loadingInvestments } = useQuery({
-    queryKey: ['investments'],
+    queryKey: ['investments', activeUserId],
     queryFn: () => investmentService.getInvestments(),
   });
 
   const { data: goals, refetch: refetchGoals, isLoading: loadingGoals } = useQuery({
-    queryKey: ['goals'],
+    queryKey: ['goals', activeUserId],
     queryFn: () => goalService.getGoals(),
   });
 
@@ -161,25 +162,27 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, { backgroundColor: theme.colors.background }]}
-      contentContainerStyle={styles.scrollContainer}
-      refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
-      }
-    >
-      {/* Saludo Inicial */}
-      <View style={styles.welcomeRow}>
-        <View>
-          <Text style={styles.welcomeText}>Hola, {user?.first_name || 'Usuario'}</Text>
-          <Text style={styles.dateText}>Bienvenido de vuelta a Bolsi</Text>
+    <View style={{ flex: 1, backgroundColor: theme.colors.background }}>
+      <AccountSwitcher />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContainer}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[theme.colors.primary]} />
+        }
+      >
+        {/* Saludo Inicial */}
+        <View style={styles.welcomeRow}>
+          <View>
+            <Text style={styles.welcomeText}>Hola, {user?.first_name || 'Usuario'}</Text>
+            <Text style={styles.dateText}>Bienvenido de vuelta a Bolsi</Text>
+          </View>
+          <IconButton
+            icon="bell-outline"
+            size={24}
+            onPress={() => {}}
+          />
         </View>
-        <IconButton
-          icon="bell-outline"
-          size={24}
-          onPress={() => {}}
-        />
-      </View>
 
       {/* Balance General Card (Premium Gradient Look) */}
       <Card style={[styles.balanceCard, { backgroundColor: theme.colors.primary }]}>
@@ -287,7 +290,8 @@ export default function HomeScreen() {
           </Card.Content>
         </Card>
       )}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 

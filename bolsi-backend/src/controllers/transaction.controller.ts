@@ -6,7 +6,7 @@ const transactionService = new TransactionService();
 export class TransactionController {
   async create(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
 
       // If a file was uploaded by multer, set the payment_receipt_image path
       if (req.file) {
@@ -22,7 +22,7 @@ export class TransactionController {
 
   async getAll(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const result = await transactionService.getTransactionsByUser(userId);
       res.json(result);
     } catch (error: any) {
@@ -41,7 +41,7 @@ export class TransactionController {
 
   async getById(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const txId = parseInt(req.params.id as string, 10);
       const result = await transactionService.getTransactionById(userId, txId);
       res.json(result);
@@ -52,7 +52,7 @@ export class TransactionController {
 
   async update(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const txId = parseInt(req.params.id as string, 10);
 
       // If a file was uploaded by multer, set the payment_receipt_image path
@@ -69,7 +69,7 @@ export class TransactionController {
 
   async delete(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const txId = parseInt(req.params.id as string, 10);
       const result = await transactionService.deleteTransaction(userId, txId);
       res.json(result);

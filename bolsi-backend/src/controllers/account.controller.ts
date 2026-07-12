@@ -6,7 +6,7 @@ const accountService = new AccountService();
 export class AccountController {
   async getAll(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const result = await accountService.getAccountsByUser(userId);
       res.json(result);
     } catch (error: any) {
@@ -16,7 +16,7 @@ export class AccountController {
 
   async getById(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const accountId = parseInt(req.params.id as string, 10);
       const result = await accountService.getAccountById(userId, accountId);
       res.json(result);
@@ -27,7 +27,7 @@ export class AccountController {
 
   async create(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const result = await accountService.createAccount(userId, req.body);
       res.status(201).json(result);
     } catch (error: any) {
@@ -37,7 +37,7 @@ export class AccountController {
 
   async update(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const accountId = parseInt(req.params.id as string, 10);
       const result = await accountService.updateAccount(userId, accountId, req.body);
       res.json(result);
@@ -48,7 +48,7 @@ export class AccountController {
 
   async delete(req: Request, res: Response) {
     try {
-      const userId = (req as any).user.id;
+      const userId = (req as any).user.activeUserId || (req as any).user.id;
       const accountId = parseInt(req.params.id as string, 10);
       const result = await accountService.deleteAccount(userId, accountId);
       res.json(result);

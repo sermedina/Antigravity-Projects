@@ -26,8 +26,14 @@ export class Debt {
   @Column({ type: 'date', nullable: true })
   due_date: Date;
 
+  @Column({ type: 'date', nullable: true })
+  start_date: Date;
+
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 0.00 })
   interest_rate: number;
+
+  @Column({ type: 'varchar', length: 20, default: 'monthly' })
+  interest_period: string;
 
   @Column({ type: 'int', default: 5 })
   urgency: number;

@@ -22,6 +22,8 @@ const debtSchema = z.object({
   interest_rate: z.coerce.number().min(0, 'El interés no puede ser negativo'),
   urgency: z.coerce.number().int().min(1, 'La urgencia debe ser mínimo 1').max(10, 'La urgencia debe ser máximo 10'),
   due_date: z.string().optional(),
+  start_date: z.string().optional(),
+  interest_period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
 });
 
 const investmentSchema = z.object({
@@ -54,6 +56,7 @@ export default function PlanningScreen() {
   const [editingDebt, setEditingDebt] = useState<Debt | null>(null);
   const [payModalVisible, setPayModalVisible] = useState(false);
   const [urgencyMenuVisible, setUrgencyMenuVisible] = useState(false);
+  const [interestPeriodMenuVisible, setInterestPeriodMenuVisible] = useState(false);
 
   const [investmentModalVisible, setInvestmentModalVisible] = useState(false);
   const [editingInvestment, setEditingInvestment] = useState<Investment | null>(null);
@@ -64,6 +67,7 @@ export default function PlanningScreen() {
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [contribModalVisible, setContribModalVisible] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
 
   // React Queries
@@ -155,7 +159,7 @@ export default function PlanningScreen() {
   // Forms configurations
   const { control: debtControl, handleSubmit: handleDebtSubmit, reset: resetDebtForm } = useForm({
     resolver: zodResolver(debtSchema),
-    defaultValues: { counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, urgency: 5, due_date: '' }
+    defaultValues: { counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, interest_period: 'monthly' as const, urgency: 5, due_date: '', start_date: new Date().toISOString().split('T')[0] }
   });
 
   const { control: invControl, handleSubmit: handleInvSubmit, reset: resetInvForm } = useForm({
@@ -217,8 +221,10 @@ export default function PlanningScreen() {
       total_amount: Number(d.total_amount),
       debt_type: d.debt_type,
       interest_rate: Number(d.interest_rate),
+      interest_period: d.interest_period || 'monthly',
       urgency: Number(d.urgency || 5),
       due_date: d.due_date ? new Date(d.due_date).toISOString().split('T')[0] : '',
+      start_date: d.start_date ? new Date(d.start_date).toISOString().split('T')[0] : '',
     });
     setDebtModalVisible(true);
   };
@@ -320,7 +326,7 @@ export default function PlanningScreen() {
                         </View>
                       </View>
                       <Text style={styles.cardSub}>
-                        {d.debt_type === 'I_OWE' ? 'Debo a esta persona' : 'Me deben a mí'} • Interés: {d.interest_rate}%
+                        {d.debt_type === 'I_OWE' ? 'Debo a esta persona' : 'Me deben a mí'} • Interés: {d.interest_rate}% {d.interest_period === 'daily' ? 'diario' : d.interest_period === 'weekly' ? 'semanal' : d.interest_period === 'yearly' ? 'anual' : 'mensual'}
                       </Text>
                     </View>
                     {activeAccessLevel !== 'READ_ONLY' && (
@@ -336,6 +342,14 @@ export default function PlanningScreen() {
                   <View style={styles.rowBetween}>
                     <Text style={styles.cardProgressText}>Pagado: {formatCurrency(paid)}</Text>
                     <Text style={styles.cardTargetText}>Resta: {formatCurrency(Number(d.remaining_amount))}</Text>
+                  </View>
+                  <View style={[styles.rowBetween, { marginTop: 6 }]}>
+                    <Text style={styles.cardProgressText}>
+                      Inicio: {d.start_date ? new Date(d.start_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
+                    </Text>
+                    <Text style={styles.cardTargetText}>
+                      Límite: {d.due_date ? new Date(d.due_date + 'T00:00:00').toLocaleDateString() : 'N/A'}
+                    </Text>
                   </View>
                 </Card.Content>
               </Card>
@@ -411,7 +425,7 @@ export default function PlanningScreen() {
           onPress={() => {
             if (activeSection === 'debts') {
               setEditingDebt(null);
-              resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, urgency: 5, due_date: '' });
+              resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, interest_period: 'monthly' as const, urgency: 5, due_date: '', start_date: new Date().toISOString().split('T')[0] });
               setDebtModalVisible(true);
             } else if (activeSection === 'investments') {
               setEditingInvestment(null);
@@ -468,6 +482,43 @@ export default function PlanningScreen() {
             />
             <Controller
               control={debtControl}
+              name="interest_period"
+              render={({ field: { onChange, value } }) => (
+                <View style={{ marginBottom: 12 }}>
+                  <Menu
+                    visible={interestPeriodMenuVisible}
+                    onDismiss={() => setInterestPeriodMenuVisible(false)}
+                    anchor={
+                      <TouchableOpacity onPress={() => setInterestPeriodMenuVisible(true)}>
+                        <View pointerEvents="none">
+                          <TextInput
+                            mode="outlined"
+                            label="Período de Interés"
+                            value={
+                              value === 'daily'
+                                ? 'Diario'
+                                : value === 'weekly'
+                                  ? 'Semanal'
+                                  : value === 'yearly'
+                                    ? 'Anual'
+                                    : 'Mensual'
+                            }
+                            right={<TextInput.Icon icon="chevron-down" />}
+                          />
+                        </View>
+                      </TouchableOpacity>
+                    }
+                  >
+                    <Menu.Item onPress={() => { onChange('daily'); setInterestPeriodMenuVisible(false); }} title="Diario" />
+                    <Menu.Item onPress={() => { onChange('weekly'); setInterestPeriodMenuVisible(false); }} title="Semanal" />
+                    <Menu.Item onPress={() => { onChange('monthly'); setInterestPeriodMenuVisible(false); }} title="Mensual" />
+                    <Menu.Item onPress={() => { onChange('yearly'); setInterestPeriodMenuVisible(false); }} title="Anual" />
+                  </Menu>
+                </View>
+              )}
+            />
+            <Controller
+              control={debtControl}
               name="urgency"
               render={({ field: { onChange, value } }) => (
                 <View>
@@ -505,7 +556,7 @@ export default function PlanningScreen() {
               control={debtControl}
               name="due_date"
               render={({ field: { onChange, onBlur, value } }) => (
-                <View>
+                <View style={{ marginBottom: 12 }}>
                   <TouchableOpacity onPress={() => setShowDueDatePicker(true)}>
                     <View pointerEvents="none">
                       <TextInput
@@ -525,6 +576,43 @@ export default function PlanningScreen() {
                       onChange={(event, selectedDate) => {
                         if (Platform.OS === 'android') {
                           setShowDueDatePicker(false);
+                        }
+                        if (selectedDate) {
+                          const year = selectedDate.getFullYear();
+                          const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                          const day = String(selectedDate.getDate()).padStart(2, '0');
+                          onChange(`${year}-${month}-${day}`);
+                        }
+                      }}
+                    />
+                  )}
+                </View>
+              )}
+            />
+            <Controller
+              control={debtControl}
+              name="start_date"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View>
+                  <TouchableOpacity onPress={() => setShowStartDatePicker(true)}>
+                    <View pointerEvents="none">
+                      <TextInput
+                        mode="outlined"
+                        label="Fecha de Inicio (YYYY-MM-DD)"
+                        onBlur={onBlur}
+                        value={value || ''}
+                        right={<TextInput.Icon icon="calendar" />}
+                      />
+                    </View>
+                  </TouchableOpacity>
+                  {showStartDatePicker && Platform.OS !== 'web' && (
+                    <DateTimePicker
+                      value={value ? new Date(value + 'T12:00:00') : new Date()}
+                      mode="date"
+                      display="default"
+                      onChange={(event, selectedDate) => {
+                        if (Platform.OS === 'android') {
+                          setShowStartDatePicker(false);
                         }
                         if (selectedDate) {
                           const year = selectedDate.getFullYear();

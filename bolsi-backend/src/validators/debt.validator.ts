@@ -6,7 +6,9 @@ export const createDebtSchema = z.object({
     total_amount: z.number().positive(),
     debt_type: z.enum(['I_OWE', 'THEY_OWE_ME']),
     due_date: z.string().optional(),
+    start_date: z.string().optional(),
     interest_rate: z.number().min(0).optional(),
+    interest_period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
     urgency: z.number().int().min(1).max(10).optional()
   })
 });
@@ -24,7 +26,9 @@ export const updateDebtSchema = z.object({
     total_amount: z.number().positive().optional(),
     debt_type: z.enum(['I_OWE', 'THEY_OWE_ME']).optional(),
     due_date: z.string().optional(),
+    start_date: z.string().optional(),
     interest_rate: z.number().min(0).optional(),
+    interest_period: z.enum(['daily', 'weekly', 'monthly', 'yearly']).optional(),
     urgency: z.number().int().min(1).max(10).optional()
   })
 });

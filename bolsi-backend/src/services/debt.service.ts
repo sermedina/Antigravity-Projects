@@ -87,7 +87,9 @@ export class DebtService {
     if (data.counterparty_name !== undefined) debt.counterparty_name = data.counterparty_name;
     if (data.debt_type !== undefined) debt.debt_type = data.debt_type;
     if (data.due_date !== undefined) debt.due_date = data.due_date;
+    if (data.start_date !== undefined) debt.start_date = data.start_date;
     if (data.interest_rate !== undefined) debt.interest_rate = data.interest_rate;
+    if (data.interest_period !== undefined) debt.interest_period = data.interest_period;
     if (data.urgency !== undefined) debt.urgency = data.urgency;
 
     if (data.total_amount !== undefined) {

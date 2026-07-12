@@ -9,7 +9,7 @@ import { router } from 'expo-router';
 
 // Esquema de validación con Zod
 const loginSchema = z.object({
-  email: z.string().email('Por favor ingrese un correo válido'),
+  username: z.string(),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
 });
 
@@ -24,7 +24,7 @@ export default function LoginScreen() {
   const { control, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: '',
+      username: '',
       password: '',
     }
   });
@@ -33,9 +33,7 @@ export default function LoginScreen() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      // El backend de Bolsi busca al usuario por la columna 'username'.
-      // Le pasamos el email en el campo 'username' para mantener consistencia.
-      await login(data.email, data.password);
+      await login(data.username, data.password);
       router.replace('/(tabs)/home');
     } catch (err: any) {
       console.error(err);
@@ -68,24 +66,23 @@ export default function LoginScreen() {
 
             <Controller
               control={control}
-              name="email"
+              name="username"
               render={({ field: { onChange, onBlur, value } }) => (
                 <View style={styles.inputContainer}>
                   <TextInput
                     mode="outlined"
-                    label="Correo electrónico"
+                    label="Usuario"
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}
-                    keyboardType="email-address"
                     autoCapitalize="none"
-                    error={!!errors.email}
-                    left={<TextInput.Icon icon="email" />}
+                    error={!!errors.username}
+                    left={<TextInput.Icon icon="account" />}
                     activeOutlineColor={theme.colors.primary}
                   />
-                  {errors.email && (
+                  {errors.username && (
                     <HelperText type="error" visible={true}>
-                      {errors.email.message}
+                      {errors.username.message}
                     </HelperText>
                   )}
                 </View>

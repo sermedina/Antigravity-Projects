@@ -11,12 +11,13 @@ export default function SharedAccessPage() {
     queryKey: ['shared-access-list'],
     queryFn: async () => {
       const res = await api.get('/shared-access-audits');
+      console.log("access: ", res.data);
       return res.data;
     }
   });
 
   const columns = [
-    { id: 'id', label: 'ID Vinculación', align: 'center' as const, render: (row: SharedAccess) => row.id.substring(0, 8).toUpperCase() },
+    { id: 'id', label: 'ID Vinculación', align: 'center' as const, render: (row: SharedAccess) => row.id },
     {
       id: 'owner',
       label: 'Propietario de Cuenta',

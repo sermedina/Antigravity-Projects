@@ -63,7 +63,7 @@ export interface Transaction {
   account: Account;
   category?: Category;
   amount: number;
-  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DOA';
   description?: string;
   payment_receipt_image?: string;
   transaction_date: string;

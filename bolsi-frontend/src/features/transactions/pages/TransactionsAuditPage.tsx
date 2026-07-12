@@ -103,7 +103,7 @@ export default function TransactionsAuditPage() {
                 <MenuItem value="">Todos</MenuItem>
                 <MenuItem value="INCOME">Ingreso</MenuItem>
                 <MenuItem value="EXPENSE">Egreso</MenuItem>
-                <MenuItem value="TRANSFER">Transferencia</MenuItem>
+                <MenuItem value="DOA">DOA</MenuItem>
               </Select>
             </FormControl>
           </Grid>

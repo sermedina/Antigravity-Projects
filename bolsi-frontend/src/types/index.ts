@@ -108,7 +108,7 @@ export interface Transaction {
   account?: Partial<Account>;
   category?: Partial<Category>;
   amount: number;
-  type: 'INCOME' | 'EXPENSE' | 'TRANSFER';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DOA';
   description?: string;
   payment_receipt_image?: string | null;
   transaction_date: string;

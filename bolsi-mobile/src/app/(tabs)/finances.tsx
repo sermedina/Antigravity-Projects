@@ -25,25 +25,40 @@ const accountSchema = z.object({
 const transactionSchema = z.object({
   accountId: z.coerce.number(),
   categoryId: z.coerce.number().optional(),
-  amount: z.coerce.number().positive('El monto debe ser mayor que 0'),
-  type: z.enum(['INCOME', 'EXPENSE', 'TRANSFER']),
+  amount: z.coerce.number().optional(),
+  type: z.enum(['INCOME', 'EXPENSE', 'DOA']),
   description: z.string().optional(),
   transaction_date: z.string().min(1, 'La fecha es requerida'),
-  destinationAccountId: z.coerce.number().optional(),
+  tithePercent: z.coerce.number().min(0, 'Mínimo 0%').max(100, 'Máximo 100%').optional(),
+  offeringPercent: z.coerce.number().min(0, 'Mínimo 0%').max(100, 'Máximo 100%').optional(),
+  savingsPercent: z.coerce.number().min(0, 'Mínimo 0%').max(100, 'Máximo 100%').optional(),
 }).superRefine((data, ctx) => {
-  if (data.type !== 'TRANSFER' && (data.categoryId === undefined || data.categoryId === null || isNaN(data.categoryId))) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'La categoría es obligatoria',
-      path: ['categoryId'],
-    });
-  }
-  if (data.type === 'TRANSFER' && !data.destinationAccountId) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'La cuenta de destino es obligatoria',
-      path: ['destinationAccountId'],
-    });
+  if (data.type === 'DOA') {
+    const t = data.tithePercent ?? 0;
+    const o = data.offeringPercent ?? 0;
+    const s = data.savingsPercent ?? 0;
+    if (t + o + s > 100) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La suma de porcentajes no puede superar el 100%',
+        path: ['tithePercent'],
+      });
+    }
+  } else {
+    if (data.amount === undefined || data.amount === null || data.amount <= 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'El monto debe ser mayor que 0',
+        path: ['amount'],
+      });
+    }
+    if (data.categoryId === undefined || data.categoryId === null || isNaN(data.categoryId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La categoría es obligatoria',
+        path: ['categoryId'],
+      });
+    }
   }
 });
 
@@ -158,11 +173,23 @@ export default function FinancesScreen() {
       type: 'EXPENSE',
       description: '',
       transaction_date: new Date().toISOString().split('T')[0],
-      destinationAccountId: undefined,
+      tithePercent: 10,
+      offeringPercent: 5,
+      savingsPercent: 20,
     }
   });
 
   const txTypeWatch = watchTx('type');
+  const watchAccountId = watchTx('accountId');
+  const watchTithePercent = watchTx('tithePercent');
+  const watchOfferingPercent = watchTx('offeringPercent');
+  const watchSavingsPercent = watchTx('savingsPercent');
+
+  const selectedAccount = useMemo(() => {
+    return accounts?.find(a => a.id === watchAccountId);
+  }, [accounts, watchAccountId]);
+
+  const currentAccountBalance = selectedAccount ? Number(selectedAccount.balance) : 0;
 
   // Launch Camera or Picker for receipt image
   const pickImage = async () => {
@@ -201,16 +228,44 @@ export default function FinancesScreen() {
   };
 
   const onTxSubmit = (data: any) => {
-    const apiData = {
-      account_id: data.accountId,
-      category_id: data.type === 'TRANSFER' ? null : data.categoryId,
-      amount: Number(data.amount),
-      type: data.type,
-      description: data.description,
-      transaction_date: data.transaction_date,
-      destination_account_id: data.type === 'TRANSFER' ? data.destinationAccountId : null,
-    };
-    createTxMutation.mutate({ data: apiData, image: receiptImage || undefined });
+    let apiData: any;
+    if (data.type === 'DOA') {
+      const selectedAcc = accounts?.find(a => a.id === data.accountId);
+      const base = selectedAcc ? Number(selectedAcc.balance) : 0;
+
+      const tPercent = Number(data.tithePercent || 0);
+      const oPercent = Number(data.offeringPercent || 0);
+      const sPercent = Number(data.savingsPercent || 0);
+
+      const tAmount = Number(((base * tPercent) / 100).toFixed(2));
+      const oAmount = Number(((base * oPercent) / 100).toFixed(2));
+      const sAmount = Number(((base * sPercent) / 100).toFixed(2));
+      const totalDoa = Number((tAmount + oAmount + sAmount).toFixed(2));
+
+      apiData = {
+        account_id: data.accountId,
+        category_id: null,
+        amount: totalDoa,
+        type: 'DOA',
+        description: data.description || 'Distribución DOA',
+        transaction_date: data.transaction_date,
+        doa_allocations: [
+          { doa_type: 'TITHE', amount: tAmount },
+          { doa_type: 'OFFERING', amount: oAmount },
+          { doa_type: 'SAVINGS', amount: sAmount }
+        ]
+      };
+    } else {
+      apiData = {
+        account_id: data.accountId,
+        category_id: data.categoryId,
+        amount: Number(data.amount),
+        type: data.type,
+        description: data.description,
+        transaction_date: data.transaction_date,
+      };
+    }
+    createTxMutation.mutate({ data: apiData, image: data.type === 'DOA' ? undefined : (receiptImage || undefined) });
   };
 
   const openEditAccount = (acc: Account) => {
@@ -231,7 +286,7 @@ export default function FinancesScreen() {
     setAccountModalVisible(true);
   };
 
-  const openCreateTx = (type: 'EXPENSE' | 'INCOME' | 'TRANSFER' = 'EXPENSE') => {
+  const openCreateTx = (type: 'EXPENSE' | 'INCOME' | 'DOA' = 'EXPENSE') => {
     resetTxForm({
       accountId: accounts && accounts.length > 0 ? accounts[0].id : undefined,
       categoryId: undefined,
@@ -239,7 +294,9 @@ export default function FinancesScreen() {
       type: type,
       description: '',
       transaction_date: new Date().toISOString().split('T')[0],
-      destinationAccountId: undefined,
+      tithePercent: 10,
+      offeringPercent: 5,
+      savingsPercent: 20,
     });
     setReceiptImage(null);
     setTxError(null);
@@ -251,6 +308,20 @@ export default function FinancesScreen() {
     if (txFilter === 'ALL') return transactions;
     return transactions.filter(t => t.type === txFilter);
   }, [transactions, txFilter]);
+
+  const doaTotals = useMemo(() => {
+    let tithe = 0;
+    let offering = 0;
+    let savings = 0;
+    transactions?.forEach(tx => {
+      tx.doa_allocations?.forEach(alloc => {
+        if (alloc.doa_type === 'TITHE') tithe += Number(alloc.amount);
+        else if (alloc.doa_type === 'OFFERING') offering += Number(alloc.amount);
+        else if (alloc.doa_type === 'SAVINGS') savings += Number(alloc.amount);
+      });
+    });
+    return { tithe, offering, savings };
+  }, [transactions]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
@@ -322,7 +393,7 @@ export default function FinancesScreen() {
                 { value: 'ALL', label: 'Todos' },
                 { value: 'INCOME', label: 'Ingresos' },
                 { value: 'EXPENSE', label: 'Gastos' },
-                { value: 'TRANSFER', label: 'Transf.' },
+                { value: 'DOA', label: 'DOA' },
               ]}
             />
           </View>
@@ -331,6 +402,27 @@ export default function FinancesScreen() {
             contentContainerStyle={styles.scrollContainer}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           >
+            {/* DOA Accumulated Summary Card */}
+            <Card style={styles.doaTotalsCard}>
+              <Card.Content>
+                <Text style={styles.doaTotalsTitle}>Acumulado Histórico DOA</Text>
+                <View style={styles.doaTotalsRow}>
+                  <View style={styles.doaTotalsCol}>
+                    <Text style={styles.doaTotalsLabel}>Diezmo ⛪</Text>
+                    <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.tithe)}</Text>
+                  </View>
+                  <View style={styles.doaTotalsCol}>
+                    <Text style={styles.doaTotalsLabel}>Ofrenda 🤲</Text>
+                    <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.offering)}</Text>
+                  </View>
+                  <View style={styles.doaTotalsCol}>
+                    <Text style={styles.doaTotalsLabel}>Ahorro 🐷</Text>
+                    <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.savings)}</Text>
+                  </View>
+                </View>
+              </Card.Content>
+            </Card>
+
             {loadingTx ? (
               <ActivityIndicator style={styles.loader} size="large" />
             ) : (
@@ -350,14 +442,18 @@ export default function FinancesScreen() {
                           ? 'arrow-up-circle'
                           : tx.type === 'EXPENSE'
                             ? 'arrow-down-circle'
-                            : 'swap-horizontal'
+                            : tx.type === 'DOA'
+                              ? 'piggy-bank'
+                              : 'swap-horizontal'
                       }
                       iconColor={
                         tx.type === 'INCOME'
                           ? '#10B981'
                           : tx.type === 'EXPENSE'
                             ? '#EF4444'
-                            : theme.colors.primary
+                            : tx.type === 'DOA'
+                              ? '#9333EA'
+                              : theme.colors.primary
                       }
                       size={24}
                     />
@@ -378,11 +474,13 @@ export default function FinancesScreen() {
                               ? '#10B981'
                               : tx.type === 'EXPENSE'
                                 ? '#EF4444'
-                                : theme.colors.primary,
+                                : tx.type === 'DOA'
+                                  ? '#9333EA'
+                                  : theme.colors.primary,
                         },
                       ]}
                     >
-                      {tx.type === 'EXPENSE' ? '-' : tx.type === 'INCOME' ? '+' : ''}
+                      {tx.type === 'EXPENSE' || tx.type === 'DOA' ? '-' : tx.type === 'INCOME' ? '+' : ''}
                       {formatCurrency(Number(tx.amount))}
                     </Text>
                   </Card.Content>
@@ -407,7 +505,7 @@ export default function FinancesScreen() {
           icon="plus"
           style={[styles.fab, { backgroundColor: theme.colors.primary }]}
           color="#FFFFFF"
-          onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'TRANSFER')}
+          onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'DOA')}
         />
       )}
 
@@ -489,7 +587,7 @@ export default function FinancesScreen() {
               ? 'Nuevo Gasto'
               : txTypeWatch === 'INCOME'
                 ? 'Nuevo Ingreso'
-                : 'Nueva Transferencia'}
+                : 'Nueva Distribución DOA'}
           </Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.dialogScrollContent}>
@@ -533,43 +631,7 @@ export default function FinancesScreen() {
                 )}
               />
 
-              {txTypeWatch === 'TRANSFER' && (
-                <Controller
-                  control={txControl}
-                  name="destinationAccountId"
-                  render={({ field: { onChange, value } }) => (
-                    <View style={styles.selectContainer}>
-                      <Text style={styles.label}>Cuenta destino</Text>
-                      <FlatList
-                        data={accounts}
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        keyExtractor={(item) => String(item.id)}
-                        renderItem={({ item }) => (
-                          <TouchableOpacity
-                            style={[
-                              styles.chip,
-                              value === item.id && { backgroundColor: theme.colors.primaryContainer },
-                            ]}
-                            onPress={() => onChange(item.id)}
-                          >
-                            <Text style={{ fontWeight: value === item.id ? '700' : '400' }}>
-                              {item.name}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
-                      />
-                      {txErrors.destinationAccountId && (
-                        <HelperText type="error" visible={true}>
-                          {txErrors.destinationAccountId.message}
-                        </HelperText>
-                      )}
-                    </View>
-                  )}
-                />
-              )}
-
-              {txTypeWatch !== 'TRANSFER' && (
+              {txTypeWatch !== 'DOA' && (
                 <Controller
                   control={txControl}
                   name="categoryId"
@@ -605,28 +667,137 @@ export default function FinancesScreen() {
                 />
               )}
 
-              <Controller
-                control={txControl}
-                name="amount"
-                render={({ field: { onChange, onBlur, value } }) => (
-                  <View>
-                    <TextInput
-                      mode="outlined"
-                      label="Monto"
-                      keyboardType="numeric"
-                      onBlur={onBlur}
-                      onChangeText={onChange}
-                      value={value === 0 ? '' : String(value)}
-                      error={!!txErrors.amount}
-                    />
-                    {txErrors.amount && (
-                      <HelperText type="error" visible={true}>
-                        {txErrors.amount.message}
-                      </HelperText>
-                    )}
+              {txTypeWatch !== 'DOA' && (
+                <Controller
+                  control={txControl}
+                  name="amount"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <View>
+                      <TextInput
+                        mode="outlined"
+                        label="Monto"
+                        keyboardType="numeric"
+                        onBlur={onBlur}
+                        onChangeText={onChange}
+                        value={value === 0 ? '' : String(value)}
+                        error={!!txErrors.amount}
+                      />
+                      {txErrors.amount && (
+                        <HelperText type="error" visible={true}>
+                          {txErrors.amount.message}
+                        </HelperText>
+                      )}
+                    </View>
+                  )}
+                />
+              )}
+
+              {txTypeWatch === 'DOA' && (
+                <View style={styles.doaFieldsContainer}>
+                  <View style={styles.doaBalanceInfo}>
+                    <Text style={styles.doaBalanceInfoLabel}>Saldo disponible en la cuenta:</Text>
+                    <Text style={styles.doaBalanceInfoValue}>{formatCurrency(currentAccountBalance)}</Text>
                   </View>
-                )}
-              />
+
+                  <Text style={styles.doaSubtitle}>Distribución de Porcentajes</Text>
+                  
+                  {/* Tithe */}
+                  <View style={styles.doaFormRow}>
+                    <View style={styles.doaInputWrap}>
+                      <Controller
+                        control={txControl}
+                        name="tithePercent"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <TextInput
+                            mode="outlined"
+                            label="Diezmo (%)"
+                            keyboardType="numeric"
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            value={value === 0 ? '' : String(value)}
+                            error={!!txErrors.tithePercent}
+                          />
+                        )}
+                      />
+                    </View>
+                    <View style={styles.doaValueWrap}>
+                      <Text style={styles.doaCalculatedVal}>
+                        Diezmo: {formatCurrency((currentAccountBalance * Number(watchTithePercent || 0)) / 100)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Offering */}
+                  <View style={styles.doaFormRow}>
+                    <View style={styles.doaInputWrap}>
+                      <Controller
+                        control={txControl}
+                        name="offeringPercent"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <TextInput
+                            mode="outlined"
+                            label="Ofrenda (%)"
+                            keyboardType="numeric"
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            value={value === 0 ? '' : String(value)}
+                            error={!!txErrors.offeringPercent}
+                          />
+                        )}
+                      />
+                    </View>
+                    <View style={styles.doaValueWrap}>
+                      <Text style={styles.doaCalculatedVal}>
+                        Ofrenda: {formatCurrency((currentAccountBalance * Number(watchOfferingPercent || 0)) / 100)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Savings */}
+                  <View style={styles.doaFormRow}>
+                    <View style={styles.doaInputWrap}>
+                      <Controller
+                        control={txControl}
+                        name="savingsPercent"
+                        render={({ field: { onChange, onBlur, value } }) => (
+                          <TextInput
+                            mode="outlined"
+                            label="Ahorro (%)"
+                            keyboardType="numeric"
+                            onBlur={onBlur}
+                            onChangeText={onChange}
+                            value={value === 0 ? '' : String(value)}
+                            error={!!txErrors.savingsPercent}
+                          />
+                        )}
+                      />
+                    </View>
+                    <View style={styles.doaValueWrap}>
+                      <Text style={styles.doaCalculatedVal}>
+                        Ahorro: {formatCurrency((currentAccountBalance * Number(watchSavingsPercent || 0)) / 100)}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {txErrors.tithePercent && (
+                    <HelperText type="error" visible={true}>
+                      {txErrors.tithePercent.message}
+                    </HelperText>
+                  )}
+
+                  {/* Total DOA */}
+                  <View style={styles.doaTotalContainer}>
+                    <Text style={styles.doaTotalLabel}>Total DOA:</Text>
+                    <Text style={styles.doaTotalValue}>
+                      {formatCurrency(
+                        ((currentAccountBalance * Number(watchTithePercent || 0)) / 100) +
+                        ((currentAccountBalance * Number(watchOfferingPercent || 0)) / 100) +
+                        ((currentAccountBalance * Number(watchSavingsPercent || 0)) / 100)
+                      )}
+                    </Text>
+                  </View>
+                </View>
+              )}
 
               <Controller
                 control={txControl}
@@ -667,13 +838,13 @@ export default function FinancesScreen() {
                         onChange={(event, selectedDate) => {
                           if (Platform.OS === 'android') {
                             setShowDatePicker(false);
-                          }
-                          if (selectedDate) {
-                            const year = selectedDate.getFullYear();
-                            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                            const day = String(selectedDate.getDate()).padStart(2, '0');
-                            onChange(`${year}-${month}-${day}`);
-                          }
+                           }
+                           if (selectedDate) {
+                             const year = selectedDate.getFullYear();
+                             const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                             const day = String(selectedDate.getDate()).padStart(2, '0');
+                             onChange(`${year}-${month}-${day}`);
+                           }
                         }}
                       />
                     )}
@@ -686,20 +857,22 @@ export default function FinancesScreen() {
                 )}
               />
 
-              <View style={styles.imagePickerWrapper}>
-                <Text style={styles.label}>Comprobante (Opcional)</Text>
-                <View style={styles.row}>
-                  <Button mode="outlined" icon="camera" onPress={takePhoto}>
-                    Cámara
-                  </Button>
-                  <Button mode="outlined" icon="image" onPress={pickImage}>
-                    Galería
-                  </Button>
+              {txTypeWatch !== 'DOA' && (
+                <View style={styles.imagePickerWrapper}>
+                  <Text style={styles.label}>Comprobante (Opcional)</Text>
+                  <View style={styles.row}>
+                    <Button mode="outlined" icon="camera" onPress={takePhoto}>
+                      Cámara
+                    </Button>
+                    <Button mode="outlined" icon="image" onPress={pickImage}>
+                      Galería
+                    </Button>
+                  </View>
+                  {receiptImage && (
+                    <Image source={{ uri: receiptImage }} style={styles.previewImage} />
+                  )}
                 </View>
-                {receiptImage && (
-                  <Image source={{ uri: receiptImage }} style={styles.previewImage} />
-                )}
-              </View>
+              )}
             </ScrollView>
           </Dialog.ScrollArea>
           <Dialog.Actions>
@@ -731,7 +904,9 @@ export default function FinancesScreen() {
                           ? '#10B981'
                           : selectedTx.type === 'EXPENSE'
                             ? '#EF4444'
-                            : theme.colors.primary,
+                            : selectedTx.type === 'DOA'
+                              ? '#9333EA'
+                              : theme.colors.primary,
                       fontWeight: 'bold',
                     },
                   ]}
@@ -747,7 +922,7 @@ export default function FinancesScreen() {
                   {new Date(selectedTx.transaction_date).toLocaleDateString()}
                 </Text>
 
-                {selectedTx.type === 'INCOME' && selectedTx.doa_allocations && selectedTx.doa_allocations.length > 0 && (
+                {(selectedTx.type === 'INCOME' || selectedTx.type === 'DOA') && selectedTx.doa_allocations && selectedTx.doa_allocations.length > 0 && (
                   <View style={styles.doaWrapper}>
                     <Divider style={styles.divider} />
                     <Text style={styles.detailLabel}>Asignaciones DOA (Diezmo/Ofrenda/Ahorro):</Text>
@@ -939,8 +1114,111 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   receiptImage: {
-    width: '100%',
     height: 200,
     borderRadius: 8,
+  },
+  doaTotalsCard: {
+    marginBottom: 8,
+    borderRadius: 12,
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    elevation: 1,
+  },
+  doaTotalsTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#6B21A8',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  doaTotalsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  doaTotalsCol: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  doaTotalsLabel: {
+    fontSize: 11,
+    color: '#5B21B6',
+    fontWeight: '600',
+    opacity: 0.8,
+  },
+  doaTotalsValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#7E22CE',
+    marginTop: 2,
+  },
+  doaFieldsContainer: {
+    gap: 8,
+    marginVertical: 4,
+  },
+  doaSubtitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#4B5563',
+    marginBottom: 4,
+  },
+  doaFormRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  doaInputWrap: {
+    flex: 1,
+  },
+  doaValueWrap: {
+    flex: 1.2,
+    justifyContent: 'center',
+  },
+  doaCalculatedVal: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#6B21A8',
+  },
+  doaTotalContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FAF5FF',
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E9D5FF',
+    marginTop: 8,
+  },
+  doaTotalLabel: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#6B21A8',
+  },
+  doaTotalValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#7E22CE',
+  },
+  doaBalanceInfo: {
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 12,
+  },
+  doaBalanceInfoLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  doaBalanceInfoValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#374151',
+    marginTop: 2,
   },
 });

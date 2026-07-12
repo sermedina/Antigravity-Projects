@@ -29,11 +29,7 @@ export class TransactionService {
       const amount = Number(data.amount);
       if (data.type === 'INCOME') {
         account.balance = Number(account.balance) + amount;
-      } else if (data.type === 'EXPENSE') {
-        account.balance = Number(account.balance) - amount;
-      } else if (data.type === 'TRANSFER') {
-        // Simple implementation: transfer out. Transfer IN requires a destination account.
-        // For simplicity, treating TRANSFER here as out. 
+      } else if (data.type === 'EXPENSE' || data.type === 'TRANSFER' || data.type === 'DOA') {
         account.balance = Number(account.balance) - amount;
       }
 
@@ -55,7 +51,7 @@ export class TransactionService {
 
       // Save DOA allocations if any
       if (data.doa_allocations && data.doa_allocations.length > 0) {
-        if (data.type !== 'INCOME') throw new Error('DOA can only be applied to INCOME transactions');
+        if (data.type !== 'INCOME' && data.type !== 'DOA') throw new Error('DOA can only be applied to INCOME or DOA transactions');
 
         let doaTotal = 0;
         for (const doa of data.doa_allocations) {
@@ -162,7 +158,7 @@ export class TransactionService {
       // 1. Revert old transaction on old account
       if (oldType === 'INCOME') {
         oldAccount.balance = Number(oldAccount.balance) - oldAmount;
-      } else if (oldType === 'EXPENSE' || oldType === 'TRANSFER') {
+      } else if (oldType === 'EXPENSE' || oldType === 'TRANSFER' || oldType === 'DOA') {
         oldAccount.balance = Number(oldAccount.balance) + oldAmount;
       }
       await queryRunner.manager.save(oldAccount);
@@ -175,7 +171,7 @@ export class TransactionService {
       // 2. Apply new transaction on new account
       if (newType === 'INCOME') {
         newAccount.balance = Number(newAccount.balance) + newAmount;
-      } else if (newType === 'EXPENSE' || newType === 'TRANSFER') {
+      } else if (newType === 'EXPENSE' || newType === 'TRANSFER' || newType === 'DOA') {
         newAccount.balance = Number(newAccount.balance) - newAmount;
       }
       await queryRunner.manager.save(newAccount);
@@ -192,11 +188,11 @@ export class TransactionService {
       const savedTx = await queryRunner.manager.save(tx);
 
       // Update DOA allocations
-      if (data.doa_allocations !== undefined || newType !== 'INCOME') {
+      if (data.doa_allocations !== undefined || (newType !== 'INCOME' && newType !== 'DOA')) {
         // Clear old allocations
         await queryRunner.manager.delete(DoaAllocation, { transaction: { id: txId } });
 
-        if (newType === 'INCOME' && data.doa_allocations && data.doa_allocations.length > 0) {
+        if ((newType === 'INCOME' || newType === 'DOA') && data.doa_allocations && data.doa_allocations.length > 0) {
           let doaTotal = 0;
           for (const doa of data.doa_allocations) {
             doaTotal += Number(doa.amount);
@@ -245,7 +241,7 @@ export class TransactionService {
       // Revert balance
       if (type === 'INCOME') {
         account.balance = Number(account.balance) - amount;
-      } else if (type === 'EXPENSE' || type === 'TRANSFER') {
+      } else if (type === 'EXPENSE' || type === 'TRANSFER' || type === 'DOA') {
         account.balance = Number(account.balance) + amount;
       }
       await queryRunner.manager.save(account);

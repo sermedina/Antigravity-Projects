@@ -21,9 +21,6 @@ export default function SettingsPage() {
   // Business
   const [baseCurrency, setBaseCurrency] = useState('USD');
   const [maintenanceMode, setMaintenanceMode] = useState(false);
-  const [tithePercent, setTithePercent] = useState('10');
-  const [offeringPercent, setOfferingPercent] = useState('5');
-  const [savingsPercent, setSavingsPercent] = useState('20');
 
   const [saved, setSaved] = useState(false);
 
@@ -183,62 +180,7 @@ export default function SettingsPage() {
                   sx={{ color: 'grey.300' }}
                 />
 
-                <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
 
-                <Typography variant="body2" color="grey.400" sx={{ fontWeight: 600 }}>Distribución DOA por Defecto (%)</Typography>
-                <Grid container spacing={2}>
-                  <Grid size={{ xs: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Diezmo"
-                      type="number"
-                      value={tithePercent}
-                      onChange={(e) => setTithePercent(e.target.value)}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          color: 'white',
-                          '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                          '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                        },
-                        '& .MuiInputLabel-root': { color: 'grey.500' },
-                      }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Ofrenda"
-                      type="number"
-                      value={offeringPercent}
-                      onChange={(e) => setOfferingPercent(e.target.value)}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          color: 'white',
-                          '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                          '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                        },
-                        '& .MuiInputLabel-root': { color: 'grey.500' },
-                      }}
-                    />
-                  </Grid>
-                  <Grid size={{ xs: 4 }}>
-                    <TextField
-                      fullWidth
-                      label="Ahorro"
-                      type="number"
-                      value={savingsPercent}
-                      onChange={(e) => setSavingsPercent(e.target.value)}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          color: 'white',
-                          '& fieldset': { borderColor: 'rgba(255,255,255,0.1)' },
-                          '&:hover fieldset': { borderColor: 'rgba(255,255,255,0.2)' },
-                        },
-                        '& .MuiInputLabel-root': { color: 'grey.500' },
-                      }}
-                    />
-                  </Grid>
-                </Grid>
 
                 <Box sx={{ mt: 'auto', pt: 3 }}>
                   <Button

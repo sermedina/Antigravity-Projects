@@ -11,7 +11,6 @@ export default function SharedAccessPage() {
     queryKey: ['shared-access-list'],
     queryFn: async () => {
       const res = await api.get('/shared-access-audits');
-      console.log("access: ", res.data);
       return res.data;
     }
   });

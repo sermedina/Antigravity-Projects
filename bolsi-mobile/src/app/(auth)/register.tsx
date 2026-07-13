@@ -1,11 +1,59 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, useTheme, HelperText, SegmentedButtons } from 'react-native-paper';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity } from 'react-native';
+import { Text, TextInput, Button, Card, useTheme, HelperText, SegmentedButtons, Menu, Portal } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../../context/AuthContext';
 import { router } from 'expo-router';
+
+const COUNTRIES = [
+  'Venezuela',
+  'Panamá',
+  'Estados Unidos',
+  'Colombia',
+  'España',
+  'Chile',
+  'Argentina',
+  'Perú',
+  'México'
+] as const;
+
+const DIAL_CODES: Record<string, string> = {
+  'Venezuela': '+58',
+  'Panamá': '+507',
+  'Estados Unidos': '+1',
+  'Colombia': '+57',
+  'España': '+34',
+  'Chile': '+56',
+  'Argentina': '+54',
+  'Perú': '+51',
+  'México': '+52'
+};
+
+const FLAG_EMOJIS: Record<string, string> = {
+  'Venezuela': '🇻🇪',
+  'Panamá': '🇵🇦',
+  'Estados Unidos': '🇺🇸',
+  'Colombia': '🇨🇴',
+  'España': '🇪🇸',
+  'Chile': '🇨🇱',
+  'Argentina': '🇦🇷',
+  'Perú': '🇵🇪',
+  'México': '🇲🇽'
+};
+
+const CITIES: Record<string, string[]> = {
+  'Venezuela': ['Caracas', 'Maracaibo', 'Valencia', 'Barquisimeto', 'Maracay', 'Ciudad Guayana', 'San Cristóbal', 'Barcelona', 'Maturín', 'Puerto Cruz', 'Mérida', 'Ciudad Bolívar', 'Cumaná', 'Barinas', 'Cabimas', 'Punto Fijo', 'Guarenas', 'Los Teques', 'Coro', 'El Tigre'],
+  'Panamá': ['Ciudad de Panamá', 'Colón', 'David', 'Chitré', 'Penonomé', 'Santiago de Veraguas', 'Changuinola', 'Las Tablas', 'La Chorrera', 'Arraiján', 'Aguadulce', 'Bugaba', 'Chepo', 'Portobelo', 'Bocas del Toro', 'Boquete', 'El Valle de Antón', 'Yaviza', 'Tocumen', 'Pacora'],
+  'Estados Unidos': ['Nueva York', 'Los Ángeles', 'Chicago', 'Houston', 'Phoenix', 'Filadelfia', 'San Antonio', 'San Diego', 'Dallas', 'San José', 'Austin', 'Jacksonville', 'San Francisco', 'Indianápolis', 'Columbus', 'Fort Worth', 'Charlotte', 'Seattle', 'Denver', 'El Paso'],
+  'Colombia': ['Bogotá', 'Medellín', 'Cali', 'Barranquilla', 'Cartagena', 'Bucaramanga', 'Pereira', 'Santa Marta', 'Ibagué', 'Pasto', 'Cúcuta', 'Manizales', 'Neiva', 'Armenia', 'Valledupar', 'Villavicencio', 'Montería', 'Popayán', 'Sincelejo', 'Tunja'],
+  'España': ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Zaragoza', 'Málaga', 'Murcia', 'Palma de Mallorca', 'Las Palmas de Gran Canaria', 'Bilbao', 'Alicante', 'Córdoba', 'Valladolid', 'Vigo', 'Gijón', 'Hospitalet de Llobregat', 'Vitoria', 'A Coruña', 'Granada', 'Elche'],
+  'Chile': ['Santiago', 'Valparaíso', 'Concepción', 'La Serena', 'Antofagasta', 'Temuco', 'Iquique', 'Rancagua', 'Talca', 'Arica', 'Puerto Montt', 'Chillán', 'Los Ángeles (Chile)', 'Osorno', 'Copiapó', 'Valdivia', 'Quillota', 'Punta Arenas', 'Curicó', 'Calama'],
+  'Argentina': ['Buenos Aires', 'Córdoba', 'Rosario', 'Mendoza', 'San Miguel de Tucumán', 'La Plata', 'Mar del Plata', 'Salta', 'Santa Fe', 'San Juan', 'Resistencia', 'Neuquén', 'Santiago del Estero', 'Corrientes', 'Bahía Blanca', 'San Salvador de Jujuy', 'Paraná', 'Posadas', 'Bariloche', 'Ushuaia'],
+  'Perú': ['Lima', 'Arequipa', 'Trujillo', 'Chiclayo', 'Piura', 'Iquitos', 'Cusco', 'Chimbote', 'Huancayo', 'Tacna', 'Pucallpa', 'Ica', 'Juliaca', 'Sullana', 'Huánuco', 'Ayacucho', 'Cajamarca', 'Tarapoto', 'Tumbes', 'Talara'],
+  'México': ['Ciudad de México', 'Tijuana', 'Ecatepec', 'León', 'Puebla', 'Guadalajara', 'Juárez', 'Zapopan', 'Monterrey', 'Nezahualcóyotl', 'Chihuahua', 'Mérida (México)', 'Naucalpan', 'Toluca', 'Cancún', 'Querétaro', 'Hermosillo', 'Saltillo', 'San Luis Potosí', 'Culiacán']
+};
 
 // Esquema de validación con Zod
 const registerSchema = z.object({
@@ -27,7 +75,10 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const { control, handleSubmit, formState: { errors } } = useForm<RegisterFormData>({
+  const [countryMenuVisible, setCountryMenuVisible] = useState(false);
+  const [cityMenuVisible, setCityMenuVisible] = useState(false);
+
+  const { control, handleSubmit, formState: { errors }, setValue, watch } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: '',
@@ -41,13 +92,17 @@ export default function RegisterScreen() {
     }
   });
 
+  const selectedCountry = watch('country');
+
   const onSubmit = async (data: RegisterFormData) => {
     setLoading(true);
     setErrorMsg(null);
     try {
       // El backend requiere 'username'. Pasamos el email como username
+      const prefix = DIAL_CODES[data.country] || '';
       const payload = {
         ...data,
+        phone: `${prefix}${data.phone}`,
         username: data.email
       };
       await register(payload);
@@ -185,47 +240,44 @@ export default function RegisterScreen() {
               )}
             />
 
-            <Controller
-              control={control}
-              name="phone"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <View>
-                  <TextInput
-                    mode="outlined"
-                    label="Teléfono"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
-                    value={value}
-                    keyboardType="phone-pad"
-                    error={!!errors.phone}
-                    left={<TextInput.Icon icon="phone" />}
-                    activeOutlineColor={theme.colors.primary}
-                  />
-                  {errors.phone && (
-                    <HelperText type="error" visible={true}>
-                      {errors.phone.message}
-                    </HelperText>
-                  )}
-                </View>
-              )}
-            />
-
             <View style={styles.row}>
               <View style={styles.flex1}>
                 <Controller
                   control={control}
                   name="country"
-                  render={({ field: { onChange, onBlur, value } }) => (
+                  render={({ field: { onChange, value } }) => (
                     <View>
-                      <TextInput
-                        mode="outlined"
-                        label="País"
-                        onBlur={onBlur}
-                        onChangeText={onChange}
-                        value={value}
-                        error={!!errors.country}
-                        activeOutlineColor={theme.colors.primary}
-                      />
+                      <Menu
+                        visible={countryMenuVisible}
+                        onDismiss={() => setCountryMenuVisible(false)}
+                        anchor={
+                          <TouchableOpacity onPress={() => setCountryMenuVisible(true)}>
+                            <View pointerEvents="none">
+                              <TextInput
+                                mode="outlined"
+                                label="País"
+                                value={value}
+                                error={!!errors.country}
+                                right={<TextInput.Icon icon="chevron-down" />}
+                                activeOutlineColor={theme.colors.primary}
+                              />
+                            </View>
+                          </TouchableOpacity>
+                        }
+                      >
+                        {COUNTRIES.map((c) => (
+                          <Menu.Item
+                            key={c}
+                            onPress={() => {
+                              onChange(c);
+                              setValue('city', '');
+                              setValue('phone', '');
+                              setCountryMenuVisible(false);
+                            }}
+                            title={c}
+                          />
+                        ))}
+                      </Menu>
                       {errors.country && (
                         <HelperText type="error" visible={true}>
                           {errors.country.message}
@@ -239,17 +291,46 @@ export default function RegisterScreen() {
                 <Controller
                   control={control}
                   name="city"
-                  render={({ field: { onChange, onBlur, value } }) => (
+                  render={({ field: { onChange, value } }) => (
                     <View>
-                      <TextInput
-                        mode="outlined"
-                        label="Ciudad"
-                        onBlur={onBlur}
-                        onChangeText={onChange}
-                        value={value}
-                        error={!!errors.city}
-                        activeOutlineColor={theme.colors.primary}
-                      />
+                      <Menu
+                        visible={cityMenuVisible}
+                        onDismiss={() => setCityMenuVisible(false)}
+                        anchor={
+                          <TouchableOpacity
+                            onPress={() => {
+                              if (selectedCountry) {
+                                setCityMenuVisible(true);
+                              }
+                            }}
+                          >
+                            <View pointerEvents="none">
+                              <TextInput
+                                mode="outlined"
+                                label="Ciudad"
+                                value={value}
+                                error={!!errors.city}
+                                right={<TextInput.Icon icon="chevron-down" />}
+                                activeOutlineColor={theme.colors.primary}
+                                placeholder={selectedCountry ? 'Seleccione' : 'Seleccione país'}
+                              />
+                            </View>
+                          </TouchableOpacity>
+                        }
+                      >
+                        <ScrollView style={{ maxHeight: 200 }}>
+                          {(CITIES[selectedCountry as keyof typeof CITIES] || []).map((ct) => (
+                            <Menu.Item
+                              key={ct}
+                              onPress={() => {
+                                onChange(ct);
+                                setCityMenuVisible(false);
+                              }}
+                              title={ct}
+                            />
+                          ))}
+                        </ScrollView>
+                      </Menu>
                       {errors.city && (
                         <HelperText type="error" visible={true}>
                           {errors.city.message}
@@ -260,6 +341,45 @@ export default function RegisterScreen() {
                 />
               </View>
             </View>
+
+            <View style={styles.phoneRow}>
+              <View style={[
+                styles.prefixBox,
+                {
+                  borderColor: theme.dark ? 'rgba(255, 255, 255, 0.3)' : 'rgba(0, 0, 0, 0.3)',
+                  backgroundColor: theme.dark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.02)'
+                }
+              ]}>
+                <Text style={[styles.prefixText, { color: theme.colors.onBackground }]}>
+                  {selectedCountry ? `${FLAG_EMOJIS[selectedCountry as keyof typeof FLAG_EMOJIS] || ''} ${DIAL_CODES[selectedCountry as keyof typeof DIAL_CODES] || ''}` : '🌐'}
+                </Text>
+              </View>
+              <View style={styles.phoneInputContainer}>
+                <Controller
+                  control={control}
+                  name="phone"
+                  render={({ field: { onChange, onBlur, value } }) => (
+                    <View>
+                      <TextInput
+                        mode="outlined"
+                        label="Teléfono"
+                        onBlur={onBlur}
+                        onChangeText={onChange}
+                        value={value}
+                        keyboardType="phone-pad"
+                        error={!!errors.phone}
+                        activeOutlineColor={theme.colors.primary}
+                      />
+                    </View>
+                  )}
+                />
+              </View>
+            </View>
+            {errors.phone && (
+              <HelperText type="error" visible={true} style={{ marginTop: -8 }}>
+                {errors.phone.message}
+              </HelperText>
+            )}
 
             <View style={styles.inputContainer}>
               <Text style={styles.label}>Tipo de persona</Text>
@@ -362,5 +482,27 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: 'center',
     marginTop: 20,
+  },
+  phoneRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginVertical: 4,
+  },
+  prefixBox: {
+    height: 56,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderRadius: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 6, // to align with TextInput outline offset
+  },
+  prefixText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  phoneInputContainer: {
+    flex: 1,
   },
 });

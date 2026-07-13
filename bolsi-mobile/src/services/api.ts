@@ -9,8 +9,8 @@ if (hostUri) {
   localIp = hostUri.split(':')[0];
 }
 
-export const BASE_URL = `http://${localIp}:3000/api`;
-export const IMAGE_BASE_URL = `http://${localIp}:3000`;
+export const BASE_URL = process.env.EXPO_PUBLIC_API_URL || `http://${localIp}:3000/api`;
+export const IMAGE_BASE_URL = process.env.EXPO_PUBLIC_IMAGE_BASE_URL || BASE_URL.replace(/\/api\/?$/, '');
 
 const api = axios.create({
   baseURL: BASE_URL,

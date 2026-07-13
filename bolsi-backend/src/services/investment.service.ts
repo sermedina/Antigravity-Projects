@@ -31,18 +31,7 @@ export class InvestmentService {
         baseTx = foundTx;
       }
 
-      // Update current value based on type
       const amount = Number(data.amount);
-      let currentValue = Number(investment.current_value);
-
-      if (data.type === 'CONTRIBUTION' || data.type === 'RETURN') {
-        currentValue += amount;
-      } else if (data.type === 'WITHDRAWAL') {
-        currentValue -= amount;
-      }
-
-      investment.current_value = currentValue.toString();
-      await queryRunner.manager.save(investment);
 
       const invTx = queryRunner.manager.create(InvestmentTransaction, {
         investment,

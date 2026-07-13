@@ -356,34 +356,50 @@ export default function PlanningScreen() {
             );
           })
         ) : activeSection === 'investments' ? (
-          investments?.map((inv) => (
-            <Card key={inv.id} style={styles.card} onPress={() => openInvEdit(inv)}>
-              <Card.Content>
-                <View style={styles.rowBetween}>
-                  <View>
-                    <Text style={styles.cardTitle}>{inv.name}</Text>
-                    <Text style={styles.cardSub}>
-                      Plataforma: {inv.platform || 'N/A'} • Tipo: {inv.asset_type}
+          investments?.map((inv) => {
+            const txs = inv.transactions || [];
+            const contributed = txs.filter(t => t.type === 'CONTRIBUTION').reduce((sum, t) => sum + Number(t.amount), 0);
+            const withdrawn = txs.filter(t => t.type === 'WITHDRAWAL').reduce((sum, t) => sum + Number(t.amount), 0);
+            const netCapital = contributed - withdrawn;
+            const returns = txs.filter(t => t.type === 'RETURN').reduce((sum, t) => sum + Number(t.amount), 0);
+
+            return (
+              <Card key={inv.id} style={styles.card} onPress={() => openInvEdit(inv)}>
+                <Card.Content>
+                  <View style={styles.rowBetween}>
+                    <View>
+                      <Text style={styles.cardTitle}>{inv.name}</Text>
+                      <Text style={styles.cardSub}>
+                        Plataforma: {inv.platform || 'N/A'} • Tipo: {inv.asset_type}
+                      </Text>
+                    </View>
+                    <Text style={styles.invValue}>{formatCurrency(Number(inv.current_value))}</Text>
+                  </View>
+                  <View style={[styles.rowBetween, { marginTop: 8 }]}>
+                    <Text style={styles.cardProgressText}>
+                      Invertido: {formatCurrency(netCapital)}
+                    </Text>
+                    <Text style={{ fontSize: 12, fontWeight: 'bold', color: '#10B981' }}>
+                      Rendimiento: +{formatCurrency(returns)}
                     </Text>
                   </View>
-                  <Text style={styles.invValue}>{formatCurrency(Number(inv.current_value))}</Text>
-                </View>
-                {activeAccessLevel !== 'READ_ONLY' && (
-                  <View style={[styles.row, styles.invActions]}>
-                    <Button compact mode="outlined" icon="plus" onPress={() => openInvTx(inv, 'CONTRIBUTION')}>
-                      Aportar
-                    </Button>
-                    <Button compact mode="outlined" icon="minus" onPress={() => openInvTx(inv, 'WITHDRAWAL')}>
-                      Retirar
-                    </Button>
-                    <Button compact mode="outlined" icon="trending-up" onPress={() => openInvTx(inv, 'RETURN')}>
-                      Rendimiento
-                    </Button>
-                  </View>
-                )}
-              </Card.Content>
-            </Card>
-          ))
+                  {activeAccessLevel !== 'READ_ONLY' && (
+                    <View style={[styles.row, styles.invActions]}>
+                      <Button compact mode="outlined" icon="plus" onPress={() => openInvTx(inv, 'CONTRIBUTION')}>
+                        Aportar
+                      </Button>
+                      <Button compact mode="outlined" icon="minus" onPress={() => openInvTx(inv, 'WITHDRAWAL')}>
+                        Retirar
+                      </Button>
+                      <Button compact mode="outlined" icon="trending-up" onPress={() => openInvTx(inv, 'RETURN')}>
+                        Rendimiento
+                      </Button>
+                    </View>
+                  )}
+                </Card.Content>
+              </Card>
+            );
+          })
         ) : (
           goals?.map((g) => {
             const progress = Number(g.target_amount) > 0 ? Number(g.current_amount) / Number(g.target_amount) : 0;

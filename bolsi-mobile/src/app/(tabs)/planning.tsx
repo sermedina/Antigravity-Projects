@@ -38,6 +38,7 @@ const goalSchema = z.object({
   description: z.string().optional(),
   target_amount: z.coerce.number().positive('La meta debe ser mayor a 0'),
   deadline: z.string().optional(),
+  status: z.enum(['IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional(),
 });
 
 // Simplified action modals schema
@@ -69,6 +70,8 @@ export default function PlanningScreen() {
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
+
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // React Queries
   const { data: debts, refetch: refetchDebts, isLoading: loadingDebts } = useQuery({
@@ -138,12 +141,18 @@ export default function PlanningScreen() {
   // Mutators for Goal
   const createGoalMutation = useMutation({
     mutationFn: (data: Partial<Goal>) => goalService.createGoal(data),
-    onSuccess: () => { refetchGoals(); setGoalModalVisible(false); }
+    onSuccess: () => { refetchGoals(); setGoalModalVisible(false); },
+    onError: (err: any) => {
+      setErrorMsg(err.response?.data?.error || err.message || 'Error al crear la meta');
+    }
   });
 
   const updateGoalMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: Partial<Goal> }) => goalService.updateGoal(id, data),
-    onSuccess: () => { refetchGoals(); setGoalModalVisible(false); setEditingGoal(null); }
+    onSuccess: () => { refetchGoals(); setGoalModalVisible(false); setEditingGoal(null); },
+    onError: (err: any) => {
+      setErrorMsg(err.response?.data?.error || err.message || 'Error al actualizar la meta');
+    }
   });
 
   const deleteGoalMutation = useMutation({
@@ -169,7 +178,7 @@ export default function PlanningScreen() {
 
   const { control: goalControl, handleSubmit: handleGoalSubmit, reset: resetGoalForm } = useForm({
     resolver: zodResolver(goalSchema),
-    defaultValues: { name: '', description: '', target_amount: 0, deadline: '' }
+    defaultValues: { name: '', description: '', target_amount: 0, deadline: '', status: 'IN_PROGRESS' as const }
   });
 
   const { control: actionControl, handleSubmit: handleActionSubmit, reset: resetActionForm } = useForm({
@@ -195,10 +204,15 @@ export default function PlanningScreen() {
   };
 
   const onGoalSubmit = (data: any) => {
+    setErrorMsg(null);
+    const payload = {
+      ...data,
+      deadline: data.deadline === '' ? null : data.deadline,
+    };
     if (editingGoal) {
-      updateGoalMutation.mutate({ id: editingGoal.id, data });
+      updateGoalMutation.mutate({ id: editingGoal.id, data: payload });
     } else {
-      createGoalMutation.mutate(data);
+      createGoalMutation.mutate(payload);
     }
   };
 
@@ -264,7 +278,9 @@ export default function PlanningScreen() {
       description: g.description || '',
       target_amount: Number(g.target_amount),
       deadline: g.deadline ? new Date(g.deadline).toISOString().split('T')[0] : '',
+      status: g.status || 'IN_PROGRESS',
     });
+    setErrorMsg(null);
     setGoalModalVisible(true);
   };
 
@@ -403,12 +419,20 @@ export default function PlanningScreen() {
         ) : (
           goals?.map((g) => {
             const progress = Number(g.target_amount) > 0 ? Number(g.current_amount) / Number(g.target_amount) : 0;
+            const status = g.status || 'IN_PROGRESS';
+            const statusLabel = status === 'COMPLETED' ? 'Completada' : status === 'CANCELLED' ? 'Cancelada' : 'En progreso';
+            const statusColor = status === 'COMPLETED' ? '#10B981' : status === 'CANCELLED' ? '#EF4444' : '#3B82F6';
             return (
               <Card key={g.id} style={styles.card} onPress={() => openGoalEdit(g)}>
                 <Card.Content>
                   <View style={styles.rowBetween}>
                     <View style={styles.flex1}>
-                      <Text style={styles.cardTitle}>{g.name}</Text>
+                      <View style={styles.urgencyRow}>
+                        <Text style={styles.cardTitle}>{g.name}</Text>
+                        <View style={[styles.urgencyBadge, { backgroundColor: statusColor }]}>
+                          <Text style={styles.urgencyBadgeText}>{statusLabel}</Text>
+                        </View>
+                      </View>
                       {g.description && <Text style={styles.cardSub}>{g.description}</Text>}
                     </View>
                     {activeAccessLevel !== 'READ_ONLY' && (
@@ -449,7 +473,8 @@ export default function PlanningScreen() {
               setInvestmentModalVisible(true);
             } else {
               setEditingGoal(null);
-              resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '' });
+              resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '', status: 'IN_PROGRESS' as const });
+              setErrorMsg(null);
               setGoalModalVisible(true);
             }
           }}
@@ -718,6 +743,7 @@ export default function PlanningScreen() {
         <Dialog visible={goalModalVisible} onDismiss={() => setGoalModalVisible(false)}>
           <Dialog.Title>{editingGoal ? 'Editar Meta' : 'Nueva Meta'}</Dialog.Title>
           <Dialog.Content style={styles.dialogContent}>
+            {errorMsg && <Text style={{ color: theme.colors.error, marginBottom: 8 }}>{errorMsg}</Text>}
             <Controller
               control={goalControl}
               name="name"
@@ -776,6 +802,26 @@ export default function PlanningScreen() {
                 </View>
               )}
             />
+            {editingGoal && (
+              <Controller
+                control={goalControl}
+                name="status"
+                render={({ field: { onChange, value } }) => (
+                  <View style={{ marginTop: 8 }}>
+                    <Text style={styles.label}>Estado de la Meta</Text>
+                    <SegmentedButtons
+                      value={value}
+                      onValueChange={onChange}
+                      buttons={[
+                        { value: 'IN_PROGRESS', label: 'En progreso' },
+                        { value: 'COMPLETED', label: 'Completada' },
+                        { value: 'CANCELLED', label: 'Cancelada' },
+                      ]}
+                    />
+                  </View>
+                )}
+              />
+            )}
           </Dialog.Content>
           <Dialog.Actions>
             {editingGoal && (

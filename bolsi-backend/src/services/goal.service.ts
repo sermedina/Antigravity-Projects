@@ -7,9 +7,12 @@ export class GoalService {
   private goalRepo = AppDataSource.getRepository(Goal);
 
   async createGoal(userId: number, data: any) {
+    const deadline = data.deadline === '' || data.deadline === undefined ? null : data.deadline;
     const goal = this.goalRepo.create({
       user: { id: userId },
-      ...data
+      status: 'IN_PROGRESS',
+      ...data,
+      deadline
     } as Partial<Goal>);
     return await this.goalRepo.save(goal);
   }
@@ -80,8 +83,15 @@ export class GoalService {
 
     if (data.name !== undefined) goal.name = data.name;
     if (data.description !== undefined) goal.description = data.description;
-    if (data.target_amount !== undefined) goal.target_amount = data.target_amount;
-    if (data.deadline !== undefined) goal.deadline = data.deadline;
+    if (data.target_amount !== undefined) {
+      goal.target_amount = data.target_amount;
+      if (Number(goal.current_amount) < Number(goal.target_amount)) {
+        goal.status = 'IN_PROGRESS';
+      } else {
+        goal.status = 'COMPLETED';
+      }
+    }
+    if (data.deadline !== undefined) goal.deadline = data.deadline === '' ? null : data.deadline;
     if (data.status !== undefined) goal.status = data.status;
 
     return await this.goalRepo.save(goal);

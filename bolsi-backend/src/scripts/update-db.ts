@@ -25,6 +25,9 @@ async function main() {
         RETURN NEW;
     END;
     $$ LANGUAGE plpgsql;
+
+    UPDATE goals SET status = 'IN_PROGRESS' WHERE status IS NULL;
+    UPDATE goals SET status = 'COMPLETED' WHERE status = 'IN_PROGRESS' AND current_amount >= target_amount;
   `);
   console.log('Database updates and trigger function replacement executed successfully');
   await AppDataSource.destroy();

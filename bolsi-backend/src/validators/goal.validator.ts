@@ -3,9 +3,9 @@ import { z } from 'zod';
 export const createGoalSchema = z.object({
   body: z.object({
     name: z.string().min(1),
-    description: z.string().optional(),
+    description: z.string().optional().nullable(),
     target_amount: z.number().positive(),
-    deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal('')).nullable().optional()
   })
 });
 
@@ -19,9 +19,9 @@ export const contributeGoalSchema = z.object({
 export const updateGoalSchema = z.object({
   body: z.object({
     name: z.string().min(1).optional(),
-    description: z.string().optional(),
+    description: z.string().optional().nullable(),
     target_amount: z.number().positive().optional(),
-    deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    deadline: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal('')).nullable().optional(),
     status: z.enum(['IN_PROGRESS', 'COMPLETED', 'CANCELLED']).optional()
   })
 });

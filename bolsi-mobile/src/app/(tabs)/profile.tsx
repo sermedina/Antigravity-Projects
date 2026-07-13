@@ -154,6 +154,9 @@ export default function ProfileScreen() {
       // Programar la notificación local
       await scheduleLocalNotification(newReminder);
     },
+    onError: (err: any) => {
+      setErrorMsg(err.response?.data?.error || err.message || 'Error al programar recordatorio');
+    },
   });
 
   const deleteReminderMutation = useMutation({
@@ -223,8 +226,16 @@ export default function ProfileScreen() {
   };
 
   const onReminderSubmit = (data: z.infer<typeof reminderSchema>) => {
+    setErrorMsg(null);
+    let formattedDate = data.reminder_date;
+    try {
+      formattedDate = new Date(data.reminder_date).toISOString();
+    } catch (e) {
+      console.warn('Error parsing date:', e);
+    }
     createReminderMutation.mutate({
       ...data,
+      reminder_date: formattedDate,
       is_recurring: false,
       is_active: true,
     });
@@ -263,6 +274,7 @@ export default function ProfileScreen() {
       description: '',
       reminder_date: new Date(Date.now() + 600000).toISOString().slice(0, 16),
     });
+    setErrorMsg(null);
     setReminderModalVisible(true);
   };
 
@@ -512,6 +524,7 @@ export default function ProfileScreen() {
         <Dialog visible={reminderModalVisible} onDismiss={() => setReminderModalVisible(false)}>
           <Dialog.Title>Nuevo Recordatorio</Dialog.Title>
           <Dialog.Content style={styles.dialogContent}>
+            {errorMsg && <Text style={{ color: theme.colors.error, marginBottom: 8 }}>{errorMsg}</Text>}
             <Controller
               control={reminderControl}
               name="title"

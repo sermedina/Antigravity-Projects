@@ -29,7 +29,7 @@ export default function RemindersPage() {
   const { data: reminders = [], isLoading } = useQuery<Reminder[]>({
     queryKey: ['admin-reminders-list'],
     queryFn: async () => {
-      const res = await api.get('/reminders/all');
+      const res = await api.get('/reminders');
       return res.data;
     }
   });

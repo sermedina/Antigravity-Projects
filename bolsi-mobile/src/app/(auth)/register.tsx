@@ -57,6 +57,7 @@ const CITIES: Record<string, string[]> = {
 
 // Esquema de validación con Zod
 const registerSchema = z.object({
+  username: z.string().min(3, 'El usuario debe tener al menos 3 caracteres'),
   email: z.string().email('Por favor ingrese un correo válido'),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
   first_name: z.string().min(1, 'El nombre es requerido'),
@@ -81,6 +82,7 @@ export default function RegisterScreen() {
   const { control, handleSubmit, formState: { errors }, setValue, watch } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
+      username: '',
       email: '',
       password: '',
       first_name: '',
@@ -98,12 +100,10 @@ export default function RegisterScreen() {
     setLoading(true);
     setErrorMsg(null);
     try {
-      // El backend requiere 'username'. Pasamos el email como username
       const prefix = DIAL_CODES[data.country] || '';
       const payload = {
         ...data,
         phone: `${prefix}${data.phone}`,
-        username: data.email
       };
       await register(payload);
       
@@ -187,6 +187,31 @@ export default function RegisterScreen() {
                 />
               </View>
             </View>
+
+            <Controller
+              control={control}
+              name="username"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <View>
+                  <TextInput
+                    mode="outlined"
+                    label="Nombre de usuario"
+                    onBlur={onBlur}
+                    onChangeText={onChange}
+                    value={value}
+                    autoCapitalize="none"
+                    error={!!errors.username}
+                    left={<TextInput.Icon icon="account" />}
+                    activeOutlineColor={theme.colors.primary}
+                  />
+                  {errors.username && (
+                    <HelperText type="error" visible={true}>
+                      {errors.username.message}
+                    </HelperText>
+                  )}
+                </View>
+              )}
+            />
 
             <Controller
               control={control}

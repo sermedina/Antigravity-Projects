@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, FlatList, Platform } from 'react-native';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, FlatList, Platform, Animated, Easing } from 'react-native';
 import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, ProgressBar, Divider, HelperText, Menu } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -69,9 +69,58 @@ export default function PlanningScreen() {
   const [contribModalVisible, setContribModalVisible] = useState(false);
   const [showDueDatePicker, setShowDueDatePicker] = useState(false);
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
-  const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
+  const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // Animation values for the pulsing FAB
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0.8)).current;
+  const buttonScaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Set initial opacity based on dark/light mode for best contrast
+    const initialOpacity = theme.dark ? 0.7 : 0.9;
+    opacityAnim.setValue(initialOpacity);
+
+    const pulse = Animated.loop(
+      Animated.parallel([
+        Animated.timing(pulseAnim, {
+          toValue: 1.6,
+          duration: 2000,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 2000,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.timing(buttonScaleAnim, {
+            toValue: 1.06,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(buttonScaleAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+
+    pulse.start();
+
+    return () => {
+      pulse.stop();
+      pulseAnim.setValue(1);
+      opacityAnim.setValue(initialOpacity);
+      buttonScaleAnim.setValue(1);
+    };
+  }, [theme.dark]);
 
   // React Queries
   const { data: debts, refetch: refetchDebts, isLoading: loadingDebts } = useQuery({
@@ -458,27 +507,45 @@ export default function PlanningScreen() {
 
       {/* FAB to Add item depending on tab */}
       {activeAccessLevel !== 'READ_ONLY' && (
-        <FAB
-          icon="plus"
-          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-          color="#FFFFFF"
-          onPress={() => {
-            if (activeSection === 'debts') {
-              setEditingDebt(null);
-              resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, interest_period: 'monthly' as const, urgency: 5, due_date: '', start_date: new Date().toISOString().split('T')[0] });
-              setDebtModalVisible(true);
-            } else if (activeSection === 'investments') {
-              setEditingInvestment(null);
-              resetInvForm({ name: '', asset_type: 'STOCK', platform: '', current_value: 0 });
-              setInvestmentModalVisible(true);
-            } else {
-              setEditingGoal(null);
-              resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '', status: 'IN_PROGRESS' as const });
-              setErrorMsg(null);
-              setGoalModalVisible(true);
-            }
-          }}
-        />
+        <View style={styles.fabContainer}>
+          <Animated.View
+            style={[
+              styles.pulseRing,
+              {
+                borderColor: theme.colors.primary,
+                borderWidth: 2,
+                backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
+                  ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
+                  : 'transparent',
+                transform: [{ scale: pulseAnim }],
+                opacity: opacityAnim,
+              },
+            ]}
+          />
+          <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+            <FAB
+              icon="plus"
+              style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
+              color="#FFFFFF"
+              onPress={() => {
+                if (activeSection === 'debts') {
+                  setEditingDebt(null);
+                  resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, interest_period: 'monthly' as const, urgency: 5, due_date: '', start_date: new Date().toISOString().split('T')[0] });
+                  setDebtModalVisible(true);
+                } else if (activeSection === 'investments') {
+                  setEditingInvestment(null);
+                  resetInvForm({ name: '', asset_type: 'STOCK', platform: '', current_value: 0 });
+                  setInvestmentModalVisible(true);
+                } else {
+                  setEditingGoal(null);
+                  resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '', status: 'IN_PROGRESS' as const });
+                  setErrorMsg(null);
+                  setGoalModalVisible(true);
+                }
+              }}
+            />
+          </Animated.View>
+        </View>
       )}
 
       {/* MODAL: CREATE/EDIT DEBT */}
@@ -928,6 +995,27 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
+    borderRadius: 30,
+    elevation: 6,
+  },
+  fabContainer: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    margin: 16,
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  fabInside: {
     borderRadius: 30,
     elevation: 6,
   },

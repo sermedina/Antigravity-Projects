@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, useTheme, HelperText } from 'react-native-paper';
+import { Text, TextInput, Button, Card, useTheme, HelperText, IconButton } from 'react-native-paper';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../../context/AuthContext';
 import { router } from 'expo-router';
 
-// Esquema de validación con Zod
 const loginSchema = z.object({
   username: z.string(),
   password: z.string().min(6, 'La contraseña debe tener al menos 6 caracteres'),
@@ -20,6 +19,7 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -41,6 +41,10 @@ export default function LoginScreen() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -97,13 +101,20 @@ export default function LoginScreen() {
                   <TextInput
                     mode="outlined"
                     label="Contraseña"
-                    secureTextEntry
+                    secureTextEntry={!showPassword} // Controla la visibilidad
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}
                     autoCapitalize="none"
                     error={!!errors.password}
                     left={<TextInput.Icon icon="lock" />}
+                    right={
+                      <TextInput.Icon
+                        icon={showPassword ? "eye-off" : "eye"}
+                        onPress={togglePasswordVisibility}
+                        forceTextInputFocus={false}
+                      />
+                    }
                     activeOutlineColor={theme.colors.primary}
                   />
                   {errors.password && (

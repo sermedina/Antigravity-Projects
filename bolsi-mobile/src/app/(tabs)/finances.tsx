@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { View, StyleSheet, ScrollView, RefreshControl, Modal, Image, TouchableOpacity, FlatList, Platform } from 'react-native';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { View, StyleSheet, ScrollView, RefreshControl, Modal, Image, TouchableOpacity, FlatList, Platform, Animated, Easing } from 'react-native';
 import { Text, Card, Button, TextInput, SegmentedButtons, IconButton, FAB, useTheme, ActivityIndicator, Portal, Dialog, Divider, HelperText } from 'react-native-paper';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -81,6 +81,63 @@ export default function FinancesScreen() {
 
   // Filters for transactions
   const [txFilter, setTxFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'>('ALL');
+
+  // Animation values for the "Add Account" pulsing button
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(0.8)).current;
+  const buttonScaleAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Only run animation when the FAB is actually visible on screen
+    const isFabVisible = activeAccessLevel !== 'READ_ONLY' && (
+      activeSection === 'accounts' || (activeSection === 'transactions' && txFilter !== 'ALL')
+    );
+    if (!isFabVisible) return;
+
+    // Set initial opacity based on dark/light mode for best contrast
+    const initialOpacity = theme.dark ? 0.7 : 0.9;
+    opacityAnim.setValue(initialOpacity);
+
+    const pulse = Animated.loop(
+      Animated.parallel([
+        Animated.timing(pulseAnim, {
+          toValue: 1.6,
+          duration: 2000,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacityAnim, {
+          toValue: 0,
+          duration: 2000,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.timing(buttonScaleAnim, {
+            toValue: 1.06,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(buttonScaleAnim, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    );
+
+    pulse.start();
+
+    return () => {
+      pulse.stop();
+      pulseAnim.setValue(1);
+      opacityAnim.setValue(initialOpacity);
+      buttonScaleAnim.setValue(1);
+    };
+  }, [activeSection, txFilter, theme.dark, activeAccessLevel]);
 
   // React Queries
   const { data: accounts, refetch: refetchAccounts, isLoading: loadingAccounts } = useQuery({
@@ -493,20 +550,56 @@ export default function FinancesScreen() {
 
       {/* FAB to add account or transaction */}
       {activeSection === 'accounts' && activeAccessLevel !== 'READ_ONLY' && (
-        <FAB
-          icon="plus"
-          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-          color="#FFFFFF"
-          onPress={openCreateAccount}
-        />
+        <View style={styles.fabContainer}>
+          <Animated.View
+            style={[
+              styles.pulseRing,
+              {
+                borderColor: theme.colors.primary,
+                borderWidth: 2,
+                backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
+                  ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
+                  : 'transparent',
+                transform: [{ scale: pulseAnim }],
+                opacity: opacityAnim,
+              },
+            ]}
+          />
+          <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+            <FAB
+              icon="plus"
+              style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
+              color="#FFFFFF"
+              onPress={openCreateAccount}
+            />
+          </Animated.View>
+        </View>
       )}
       {activeSection === 'transactions' && txFilter !== 'ALL' && activeAccessLevel !== 'READ_ONLY' && (
-        <FAB
-          icon="plus"
-          style={[styles.fab, { backgroundColor: theme.colors.primary }]}
-          color="#FFFFFF"
-          onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'DOA')}
-        />
+        <View style={styles.fabContainer}>
+          <Animated.View
+            style={[
+              styles.pulseRing,
+              {
+                borderColor: theme.colors.primary,
+                borderWidth: 2,
+                backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
+                  ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
+                  : 'transparent',
+                transform: [{ scale: pulseAnim }],
+                opacity: opacityAnim,
+              },
+            ]}
+          />
+          <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+            <FAB
+              icon="plus"
+              style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
+              color="#FFFFFF"
+              onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'DOA')}
+            />
+          </Animated.View>
+        </View>
       )}
 
       {/* MODAL: CREATE / EDIT ACCOUNT */}
@@ -700,7 +793,7 @@ export default function FinancesScreen() {
                   </View>
 
                   <Text style={styles.doaSubtitle}>Distribución de Porcentajes</Text>
-                  
+
                   {/* Tithe */}
                   <View style={styles.doaFormRow}>
                     <View style={styles.doaInputWrap}>
@@ -838,13 +931,13 @@ export default function FinancesScreen() {
                         onChange={(event, selectedDate) => {
                           if (Platform.OS === 'android') {
                             setShowDatePicker(false);
-                           }
-                           if (selectedDate) {
-                             const year = selectedDate.getFullYear();
-                             const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-                             const day = String(selectedDate.getDate()).padStart(2, '0');
-                             onChange(`${year}-${month}-${day}`);
-                           }
+                          }
+                          if (selectedDate) {
+                            const year = selectedDate.getFullYear();
+                            const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                            const day = String(selectedDate.getDate()).padStart(2, '0');
+                            onChange(`${year}-${month}-${day}`);
+                          }
                         }}
                       />
                     )}
@@ -1036,6 +1129,27 @@ const styles = StyleSheet.create({
     margin: 16,
     right: 0,
     bottom: 0,
+    borderRadius: 30,
+    elevation: 6,
+  },
+  fabContainer: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    margin: 16,
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+  pulseRing: {
+    position: 'absolute',
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+  },
+  fabInside: {
     borderRadius: 30,
     elevation: 6,
   },

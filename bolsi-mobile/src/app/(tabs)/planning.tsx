@@ -508,43 +508,64 @@ export default function PlanningScreen() {
       {/* FAB to Add item depending on tab */}
       {activeAccessLevel !== 'READ_ONLY' && (
         <View style={styles.fabContainer}>
-          <Animated.View
-            style={[
-              styles.pulseRing,
-              {
-                borderColor: theme.colors.primary,
-                borderWidth: 2,
-                backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
-                  ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
-                  : 'transparent',
-                transform: [{ scale: pulseAnim }],
-                opacity: opacityAnim,
-              },
-            ]}
-          />
-          <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
-            <FAB
-              icon="plus"
-              style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
-              color="#FFFFFF"
-              onPress={() => {
-                if (activeSection === 'debts') {
-                  setEditingDebt(null);
-                  resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, interest_period: 'monthly' as const, urgency: 5, due_date: '', start_date: new Date().toISOString().split('T')[0] });
-                  setDebtModalVisible(true);
-                } else if (activeSection === 'investments') {
-                  setEditingInvestment(null);
-                  resetInvForm({ name: '', asset_type: 'STOCK', platform: '', current_value: 0 });
-                  setInvestmentModalVisible(true);
-                } else {
-                  setEditingGoal(null);
-                  resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '', status: 'IN_PROGRESS' as const });
-                  setErrorMsg(null);
-                  setGoalModalVisible(true);
-                }
-              }}
-            />
-          </Animated.View>
+          <View style={styles.fabRow}>
+            <View
+              style={[
+                styles.fabLabelWrapper,
+                {
+                  backgroundColor: theme.dark ? '#1E293B' : '#FFFFFF',
+                  borderColor: theme.dark ? '#334155' : '#E2E8F0',
+                },
+              ]}
+            >
+              <Text style={[styles.fabLabelText, { color: theme.dark ? '#F8FAFC' : '#0F172A' }]}>
+                {activeSection === 'debts'
+                  ? 'Nueva deuda'
+                  : activeSection === 'investments'
+                    ? 'Nueva inversión'
+                    : 'Nueva meta'}
+              </Text>
+            </View>
+            <View style={styles.fabInsideWrapper}>
+              <Animated.View
+                style={[
+                  styles.pulseRing,
+                  {
+                    borderColor: theme.colors.primary,
+                    borderWidth: 2,
+                    backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
+                      ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
+                      : 'transparent',
+                    transform: [{ scale: pulseAnim }],
+                    opacity: opacityAnim,
+                  },
+                ]}
+              />
+              <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+                <FAB
+                  icon="plus"
+                  style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
+                  color="#FFFFFF"
+                  onPress={() => {
+                    if (activeSection === 'debts') {
+                      setEditingDebt(null);
+                      resetDebtForm({ counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, interest_period: 'monthly' as const, urgency: 5, due_date: '', start_date: new Date().toISOString().split('T')[0] });
+                      setDebtModalVisible(true);
+                    } else if (activeSection === 'investments') {
+                      setEditingInvestment(null);
+                      resetInvForm({ name: '', asset_type: 'STOCK', platform: '', current_value: 0 });
+                      setInvestmentModalVisible(true);
+                    } else {
+                      setEditingGoal(null);
+                      resetGoalForm({ name: '', description: '', target_amount: 0, deadline: '', status: 'IN_PROGRESS' as const });
+                      setErrorMsg(null);
+                      setGoalModalVisible(true);
+                    }
+                  }}
+                />
+              </Animated.View>
+            </View>
+          </View>
         </View>
       )}
 
@@ -1003,14 +1024,40 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     margin: 16,
+    zIndex: 999,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  fabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fabLabelWrapper: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  fabLabelText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  fabInsideWrapper: {
     width: 56,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 999,
   },
   pulseRing: {
     position: 'absolute',
+    left: 0,
+    top: 0,
     width: 56,
     height: 56,
     borderRadius: 28,

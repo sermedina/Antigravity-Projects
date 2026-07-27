@@ -449,7 +449,7 @@ export default function FinancesScreen() {
               buttons={[
                 { value: 'ALL', label: 'Todos' },
                 { value: 'INCOME', label: 'Ingresos' },
-                { value: 'EXPENSE', label: 'Gastos' },
+                { value: 'EXPENSE', label: 'Egresos' },
                 { value: 'DOA', label: 'DOA' },
               ]}
             />
@@ -551,54 +551,92 @@ export default function FinancesScreen() {
       {/* FAB to add account or transaction */}
       {activeSection === 'accounts' && activeAccessLevel !== 'READ_ONLY' && (
         <View style={styles.fabContainer}>
-          <Animated.View
-            style={[
-              styles.pulseRing,
-              {
-                borderColor: theme.colors.primary,
-                borderWidth: 2,
-                backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
-                  ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
-                  : 'transparent',
-                transform: [{ scale: pulseAnim }],
-                opacity: opacityAnim,
-              },
-            ]}
-          />
-          <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
-            <FAB
-              icon="plus"
-              style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
-              color="#FFFFFF"
-              onPress={openCreateAccount}
-            />
-          </Animated.View>
+          <View style={styles.fabRow}>
+            <View
+              style={[
+                styles.fabLabelWrapper,
+                {
+                  backgroundColor: theme.dark ? '#1E293B' : '#FFFFFF',
+                  borderColor: theme.dark ? '#334155' : '#E2E8F0',
+                },
+              ]}
+            >
+              <Text style={[styles.fabLabelText, { color: theme.dark ? '#F8FAFC' : '#0F172A' }]}>
+                Nueva cuenta
+              </Text>
+            </View>
+            <View style={styles.fabInsideWrapper}>
+              <Animated.View
+                style={[
+                  styles.pulseRing,
+                  {
+                    borderColor: theme.colors.primary,
+                    borderWidth: 2,
+                    backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
+                      ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
+                      : 'transparent',
+                    transform: [{ scale: pulseAnim }],
+                    opacity: opacityAnim,
+                  },
+                ]}
+              />
+              <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+                <FAB
+                  icon="plus"
+                  style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
+                  color="#FFFFFF"
+                  onPress={openCreateAccount}
+                />
+              </Animated.View>
+            </View>
+          </View>
         </View>
       )}
       {activeSection === 'transactions' && txFilter !== 'ALL' && activeAccessLevel !== 'READ_ONLY' && (
         <View style={styles.fabContainer}>
-          <Animated.View
-            style={[
-              styles.pulseRing,
-              {
-                borderColor: theme.colors.primary,
-                borderWidth: 2,
-                backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
-                  ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
-                  : 'transparent',
-                transform: [{ scale: pulseAnim }],
-                opacity: opacityAnim,
-              },
-            ]}
-          />
-          <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
-            <FAB
-              icon="plus"
-              style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
-              color="#FFFFFF"
-              onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'DOA')}
-            />
-          </Animated.View>
+          <View style={styles.fabRow}>
+            <View
+              style={[
+                styles.fabLabelWrapper,
+                {
+                  backgroundColor: theme.dark ? '#1E293B' : '#FFFFFF',
+                  borderColor: theme.dark ? '#334155' : '#E2E8F0',
+                },
+              ]}
+            >
+              <Text style={[styles.fabLabelText, { color: theme.dark ? '#F8FAFC' : '#0F172A' }]}>
+                {txFilter === 'INCOME'
+                  ? 'Nuevo ingreso'
+                  : txFilter === 'EXPENSE'
+                    ? 'Nuevo egreso'
+                    : 'Nuevo DOA'}
+              </Text>
+            </View>
+            <View style={styles.fabInsideWrapper}>
+              <Animated.View
+                style={[
+                  styles.pulseRing,
+                  {
+                    borderColor: theme.colors.primary,
+                    borderWidth: 2,
+                    backgroundColor: typeof theme.colors.primary === 'string' && theme.colors.primary.startsWith('#')
+                      ? (theme.dark ? `${theme.colors.primary}15` : `${theme.colors.primary}08`)
+                      : 'transparent',
+                    transform: [{ scale: pulseAnim }],
+                    opacity: opacityAnim,
+                  },
+                ]}
+              />
+              <Animated.View style={{ transform: [{ scale: buttonScaleAnim }] }}>
+                <FAB
+                  icon="plus"
+                  style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
+                  color="#FFFFFF"
+                  onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'DOA')}
+                />
+              </Animated.View>
+            </View>
+          </View>
         </View>
       )}
 
@@ -677,7 +715,7 @@ export default function FinancesScreen() {
         <Dialog visible={txModalVisible} onDismiss={() => setTxModalVisible(false)}>
           <Dialog.Title>
             {txTypeWatch === 'EXPENSE'
-              ? 'Nuevo Gasto'
+              ? 'Nuevo Egreso'
               : txTypeWatch === 'INCOME'
                 ? 'Nuevo Ingreso'
                 : 'Nueva Distribución DOA'}
@@ -1137,14 +1175,40 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     margin: 16,
+    zIndex: 999,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  fabRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  fabLabelWrapper: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+  },
+  fabLabelText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+  },
+  fabInsideWrapper: {
     width: 56,
     height: 56,
     justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 999,
   },
   pulseRing: {
     position: 'absolute',
+    left: 0,
+    top: 0,
     width: 56,
     height: 56,
     borderRadius: 28,

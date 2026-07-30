@@ -29,7 +29,7 @@ export class TransactionService {
       const amount = Number(data.amount);
       if (data.type === 'INCOME') {
         account.balance = Number(account.balance) + amount;
-      } else if (data.type === 'EXPENSE' || data.type === 'TRANSFER' || data.type === 'DOA') {
+      } else if (data.type === 'EXPENSE' || data.type === 'TRANSFER' || data.type === 'DOA' || data.type === 'SAVING') {
         account.balance = Number(account.balance) - amount;
       }
 
@@ -158,7 +158,7 @@ export class TransactionService {
       // 1. Revert old transaction on old account
       if (oldType === 'INCOME') {
         oldAccount.balance = Number(oldAccount.balance) - oldAmount;
-      } else if (oldType === 'EXPENSE' || oldType === 'TRANSFER' || oldType === 'DOA') {
+      } else if (oldType === 'EXPENSE' || oldType === 'TRANSFER' || oldType === 'DOA' || oldType === 'SAVING') {
         oldAccount.balance = Number(oldAccount.balance) + oldAmount;
       }
       await queryRunner.manager.save(oldAccount);
@@ -171,7 +171,7 @@ export class TransactionService {
       // 2. Apply new transaction on new account
       if (newType === 'INCOME') {
         newAccount.balance = Number(newAccount.balance) + newAmount;
-      } else if (newType === 'EXPENSE' || newType === 'TRANSFER' || newType === 'DOA') {
+      } else if (newType === 'EXPENSE' || newType === 'TRANSFER' || newType === 'DOA' || newType === 'SAVING') {
         newAccount.balance = Number(newAccount.balance) - newAmount;
       }
       await queryRunner.manager.save(newAccount);
@@ -241,7 +241,7 @@ export class TransactionService {
       // Revert balance
       if (type === 'INCOME') {
         account.balance = Number(account.balance) - amount;
-      } else if (type === 'EXPENSE' || type === 'TRANSFER' || type === 'DOA') {
+      } else if (type === 'EXPENSE' || type === 'TRANSFER' || type === 'DOA' || type === 'SAVING') {
         account.balance = Number(account.balance) + amount;
       }
       await queryRunner.manager.save(account);

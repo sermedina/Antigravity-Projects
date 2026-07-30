@@ -57,7 +57,7 @@ const reminderSchema = z.object({
 
 export default function ProfileScreen() {
   const theme = useTheme();
-  const { logout, refreshProfile } = useAuth();
+  const { logout, refreshProfile, isDoaPractice, toggleDoaPractice } = useAuth();
   const queryClient = useQueryClient();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -340,6 +340,20 @@ export default function ProfileScreen() {
           left={(props) => <List.Icon {...props} icon="bell-ring-outline" />}
           right={(props) => <List.Icon {...props} icon="chevron-right" />}
           onPress={openAddReminder}
+          style={styles.settingsItem}
+        />
+
+        <List.Subheader>Preferencias</List.Subheader>
+        <List.Item
+          title="¿Practica usted el Diezmo, Ofrenda y Ahorro (DOA)?"
+          titleNumberOfLines={3}
+          left={(props) => <List.Icon {...props} icon="hands-pray" />}
+          right={() => (
+            <Switch
+              value={isDoaPractice}
+              onValueChange={toggleDoaPractice}
+            />
+          )}
           style={styles.settingsItem}
         />
       </List.Section>

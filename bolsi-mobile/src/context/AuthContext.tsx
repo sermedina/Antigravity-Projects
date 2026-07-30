@@ -21,6 +21,8 @@ interface AuthContextType {
   activeAccessLevel: 'OWNER' | 'READ_ONLY' | 'READ_WRITE';
   activeUserEmail: string | null;
   setActiveContext: (userId: number | null, level: 'OWNER' | 'READ_ONLY' | 'READ_WRITE', email: string | null) => void;
+  isDoaPractice: boolean;
+  toggleDoaPractice: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -34,6 +36,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [activeUserId, setActiveUserIdState] = useState<number | null>(null);
   const [activeAccessLevel, setActiveAccessLevel] = useState<'OWNER' | 'READ_ONLY' | 'READ_WRITE'>('OWNER');
   const [activeUserEmail, setActiveUserEmail] = useState<string | null>(null);
+  const [isDoaPractice, setIsDoaPractice] = useState(false);
+
+  const toggleDoaPractice = async () => {
+    const newVal = !isDoaPractice;
+    setIsDoaPractice(newVal);
+    await AsyncStorage.setItem('@doa_practice', JSON.stringify(newVal));
+  };
 
   const setActiveContext = (userId: number | null, level: 'OWNER' | 'READ_ONLY' | 'READ_WRITE', email: string | null) => {
     setActiveUserIdState(userId);
@@ -62,6 +71,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             }
           }
         }
+        const storedDoa = await AsyncStorage.getItem('@doa_practice');
+        if (storedDoa !== null) {
+          setIsDoaPractice(JSON.parse(storedDoa));
+        }
       } catch (e) {
         console.error('Error loading session:', e);
       } finally {
@@ -77,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await AsyncStorage.removeItem('user_data');
     setToken(null);
     setUser(null);
+    setIsDoaPractice(false);
     setActiveContext(null, 'OWNER', null);
   };
 
@@ -146,7 +160,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         activeUserId,
         activeAccessLevel,
         activeUserEmail,
-        setActiveContext
+        setActiveContext,
+        isDoaPractice,
+        toggleDoaPractice
       }}
     >
       {children}

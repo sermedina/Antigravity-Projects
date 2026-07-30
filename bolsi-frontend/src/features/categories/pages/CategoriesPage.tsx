@@ -18,7 +18,7 @@ export default function CategoriesPage() {
   const [open, setOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [name, setName] = useState('');
-  const [type, setType] = useState<'INCOME' | 'EXPENSE' | 'DOA'>('EXPENSE');
+  const [type, setType] = useState<'INCOME' | 'EXPENSE' | 'DOA' | 'SAVING'>('EXPENSE');
   const [iconUrl, setIconUrl] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -131,6 +131,7 @@ export default function CategoriesPage() {
                   <MenuItem value="INCOME">Ingreso (INCOME)</MenuItem>
                   <MenuItem value="EXPENSE">Egreso (EXPENSE)</MenuItem>
                   <MenuItem value="DOA">Distribución Operativa (DOA)</MenuItem>
+                  <MenuItem value="SAVING">Ahorro (SAVING)</MenuItem>
                 </Select>
               </FormControl>
               <TextField fullWidth label="Icono URL (Opcional)" placeholder="https://ejemplo.com/icono.svg" value={iconUrl} onChange={(e) => setIconUrl(e.target.value)} sx={fieldSx} />

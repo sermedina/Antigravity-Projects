@@ -48,7 +48,7 @@ export interface Account {
 export interface Category {
   id: number;
   name: string;
-  type: 'INCOME' | 'EXPENSE' | 'DOA';
+  type: 'INCOME' | 'EXPENSE' | 'DOA' | 'SAVING';
   icon_url?: string;
 }
 
@@ -63,7 +63,7 @@ export interface Transaction {
   account: Account;
   category?: Category;
   amount: number;
-  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DOA';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DOA' | 'SAVING';
   description?: string;
   payment_receipt_image?: string;
   transaction_date: string;

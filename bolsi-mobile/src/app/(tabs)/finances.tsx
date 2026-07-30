@@ -26,7 +26,7 @@ const transactionSchema = z.object({
   accountId: z.coerce.number(),
   categoryId: z.coerce.number().optional(),
   amount: z.coerce.number().optional(),
-  type: z.enum(['INCOME', 'EXPENSE', 'DOA']),
+  type: z.enum(['INCOME', 'EXPENSE', 'DOA', 'SAVING']),
   description: z.string().optional(),
   transaction_date: z.string().min(1, 'La fecha es requerida'),
   tithePercent: z.coerce.number().min(0, 'Mínimo 0%').max(100, 'Máximo 100%').optional(),
@@ -64,7 +64,7 @@ const transactionSchema = z.object({
 
 export default function FinancesScreen() {
   const theme = useTheme();
-  const { activeUserId, activeAccessLevel } = useAuth();
+  const { activeUserId, activeAccessLevel, isDoaPractice } = useAuth();
   const [activeSection, setActiveSection] = useState<'accounts' | 'transactions'>('accounts');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -80,7 +80,7 @@ export default function FinancesScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Filters for transactions
-  const [txFilter, setTxFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER'>('ALL');
+  const [txFilter, setTxFilter] = useState<'ALL' | 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DOA' | 'SAVING'>('ALL');
 
   // Animation values for the "Add Account" pulsing button
   const pulseAnim = useRef(new Animated.Value(1)).current;
@@ -138,6 +138,14 @@ export default function FinancesScreen() {
       buttonScaleAnim.setValue(1);
     };
   }, [activeSection, txFilter, theme.dark, activeAccessLevel]);
+
+  useEffect(() => {
+    if (!isDoaPractice && txFilter === 'DOA') {
+      setTxFilter('SAVING');
+    } else if (isDoaPractice && txFilter === 'SAVING') {
+      setTxFilter('DOA');
+    }
+  }, [isDoaPractice, txFilter]);
 
   // React Queries
   const { data: accounts, refetch: refetchAccounts, isLoading: loadingAccounts } = useQuery({
@@ -343,7 +351,7 @@ export default function FinancesScreen() {
     setAccountModalVisible(true);
   };
 
-  const openCreateTx = (type: 'EXPENSE' | 'INCOME' | 'DOA' = 'EXPENSE') => {
+  const openCreateTx = (type: 'EXPENSE' | 'INCOME' | 'DOA' | 'SAVING' = 'EXPENSE') => {
     resetTxForm({
       accountId: accounts && accounts.length > 0 ? accounts[0].id : undefined,
       categoryId: undefined,
@@ -378,6 +386,16 @@ export default function FinancesScreen() {
       });
     });
     return { tithe, offering, savings };
+  }, [transactions]);
+
+  const savingsTotal = useMemo(() => {
+    let total = 0;
+    transactions?.forEach(tx => {
+      if (tx.type === 'SAVING') {
+        total += Number(tx.amount);
+      }
+    });
+    return total;
   }, [transactions]);
 
   const formatCurrency = (val: number) => {
@@ -450,7 +468,9 @@ export default function FinancesScreen() {
                 { value: 'ALL', label: 'Todos' },
                 { value: 'INCOME', label: 'Ingresos' },
                 { value: 'EXPENSE', label: 'Egresos' },
-                { value: 'DOA', label: 'DOA' },
+                isDoaPractice
+                  ? { value: 'DOA', label: 'DOA' }
+                  : { value: 'SAVING', label: 'Ahorro' },
               ]}
             />
           </View>
@@ -459,26 +479,40 @@ export default function FinancesScreen() {
             contentContainerStyle={styles.scrollContainer}
             refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           >
-            {/* DOA Accumulated Summary Card */}
-            <Card style={styles.doaTotalsCard}>
-              <Card.Content>
-                <Text style={styles.doaTotalsTitle}>Acumulado Histórico DOA</Text>
-                <View style={styles.doaTotalsRow}>
-                  <View style={styles.doaTotalsCol}>
-                    <Text style={styles.doaTotalsLabel}>Diezmo ⛪</Text>
-                    <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.tithe)}</Text>
+            {/* Accumulated Summary Card */}
+            {!isDoaPractice ? (
+              <Card style={styles.doaTotalsCard}>
+                <Card.Content>
+                  <Text style={styles.doaTotalsTitle}>Acumulado Histórico de Ahorro</Text>
+                  <View style={styles.doaTotalsRow}>
+                    <View style={styles.doaTotalsCol}>
+                      <Text style={styles.doaTotalsLabel}>Ahorro Total 🐷</Text>
+                      <Text style={styles.doaTotalsValue}>{formatCurrency(savingsTotal)}</Text>
+                    </View>
                   </View>
-                  <View style={styles.doaTotalsCol}>
-                    <Text style={styles.doaTotalsLabel}>Ofrenda 🤲</Text>
-                    <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.offering)}</Text>
+                </Card.Content>
+              </Card>
+            ) : (
+              <Card style={styles.doaTotalsCard}>
+                <Card.Content>
+                  <Text style={styles.doaTotalsTitle}>Acumulado Histórico DOA</Text>
+                  <View style={styles.doaTotalsRow}>
+                    <View style={styles.doaTotalsCol}>
+                      <Text style={styles.doaTotalsLabel}>Diezmo ⛪</Text>
+                      <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.tithe)}</Text>
+                    </View>
+                    <View style={styles.doaTotalsCol}>
+                      <Text style={styles.doaTotalsLabel}>Ofrenda 🤲</Text>
+                      <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.offering)}</Text>
+                    </View>
+                    <View style={styles.doaTotalsCol}>
+                      <Text style={styles.doaTotalsLabel}>Ahorro 🐷</Text>
+                      <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.savings)}</Text>
+                    </View>
                   </View>
-                  <View style={styles.doaTotalsCol}>
-                    <Text style={styles.doaTotalsLabel}>Ahorro 🐷</Text>
-                    <Text style={styles.doaTotalsValue}>{formatCurrency(doaTotals.savings)}</Text>
-                  </View>
-                </View>
-              </Card.Content>
-            </Card>
+                </Card.Content>
+              </Card>
+            )}
 
             {loadingTx ? (
               <ActivityIndicator style={styles.loader} size="large" />
@@ -499,7 +533,7 @@ export default function FinancesScreen() {
                           ? 'arrow-up-circle'
                           : tx.type === 'EXPENSE'
                             ? 'arrow-down-circle'
-                            : tx.type === 'DOA'
+                            : (tx.type === 'DOA' || tx.type === 'SAVING')
                               ? 'piggy-bank'
                               : 'swap-horizontal'
                       }
@@ -510,7 +544,9 @@ export default function FinancesScreen() {
                             ? '#EF4444'
                             : tx.type === 'DOA'
                               ? '#9333EA'
-                              : theme.colors.primary
+                              : tx.type === 'SAVING'
+                                ? '#F59E0B'
+                                : theme.colors.primary
                       }
                       size={24}
                     />
@@ -533,11 +569,13 @@ export default function FinancesScreen() {
                                 ? '#EF4444'
                                 : tx.type === 'DOA'
                                   ? '#9333EA'
-                                  : theme.colors.primary,
+                                  : tx.type === 'SAVING'
+                                    ? '#F59E0B'
+                                    : theme.colors.primary,
                         },
                       ]}
                     >
-                      {tx.type === 'EXPENSE' || tx.type === 'DOA' ? '-' : tx.type === 'INCOME' ? '+' : ''}
+                      {tx.type === 'EXPENSE' || tx.type === 'DOA' || tx.type === 'SAVING' ? '-' : tx.type === 'INCOME' ? '+' : ''}
                       {formatCurrency(Number(tx.amount))}
                     </Text>
                   </Card.Content>
@@ -609,7 +647,9 @@ export default function FinancesScreen() {
                   ? 'Nuevo ingreso'
                   : txFilter === 'EXPENSE'
                     ? 'Nuevo egreso'
-                    : 'Nuevo DOA'}
+                    : txFilter === 'SAVING'
+                      ? 'Nuevo ahorro'
+                      : 'Nuevo DOA'}
               </Text>
             </View>
             <View style={styles.fabInsideWrapper}>
@@ -632,7 +672,7 @@ export default function FinancesScreen() {
                   icon="plus"
                   style={[styles.fabInside, { backgroundColor: theme.colors.primary }]}
                   color="#FFFFFF"
-                  onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'DOA')}
+                  onPress={() => openCreateTx(txFilter as 'EXPENSE' | 'INCOME' | 'DOA' | 'SAVING')}
                 />
               </Animated.View>
             </View>
@@ -718,7 +758,9 @@ export default function FinancesScreen() {
               ? 'Nuevo Egreso'
               : txTypeWatch === 'INCOME'
                 ? 'Nuevo Ingreso'
-                : 'Nueva Distribución DOA'}
+                : txTypeWatch === 'SAVING'
+                  ? 'Nuevo Ahorro'
+                  : 'Nueva Distribución DOA'}
           </Dialog.Title>
           <Dialog.ScrollArea style={styles.scrollArea}>
             <ScrollView contentContainerStyle={styles.dialogScrollContent}>
@@ -988,7 +1030,7 @@ export default function FinancesScreen() {
                 )}
               />
 
-              {txTypeWatch !== 'DOA' && (
+              {txTypeWatch !== 'DOA' && txTypeWatch !== 'SAVING' && (
                 <View style={styles.imagePickerWrapper}>
                   <Text style={styles.label}>Comprobante (Opcional)</Text>
                   <View style={styles.row}>

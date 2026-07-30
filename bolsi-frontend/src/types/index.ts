@@ -91,13 +91,13 @@ export interface VerificationToken {
 export interface Category {
   id: number;
   name: string;
-  type: 'INCOME' | 'EXPENSE' | 'DOA';
+  type: 'INCOME' | 'EXPENSE' | 'DOA' | 'SAVING';
   icon_url: string | null;
 }
 
 export interface CategoryPayload {
   name: string;
-  type: 'INCOME' | 'EXPENSE' | 'DOA';
+  type: 'INCOME' | 'EXPENSE' | 'DOA' | 'SAVING';
   icon_url?: string;
 }
 
@@ -108,7 +108,7 @@ export interface Transaction {
   account?: Partial<Account>;
   category?: Partial<Category>;
   amount: number;
-  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DOA';
+  type: 'INCOME' | 'EXPENSE' | 'TRANSFER' | 'DOA' | 'SAVING';
   description?: string;
   payment_receipt_image?: string | null;
   transaction_date: string;

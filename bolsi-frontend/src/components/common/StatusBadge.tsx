@@ -24,16 +24,16 @@ export default function StatusBadge({ status, type = 'status' }: StatusBadgeProp
     border = `1px solid ${status === 'NATURAL' ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`;
   } else if (type === 'transactionType') {
     const s = String(status).toUpperCase();
-    label = s === 'INCOME' ? 'Ingreso' : s === 'EXPENSE' ? 'Egreso' : s === 'DOA' ? 'DOA' : 'Transferencia';
-    bgcolor = s === 'INCOME' ? 'rgba(34, 197, 94, 0.1)' : s === 'EXPENSE' ? 'rgba(239, 68, 68, 0.1)' : s === 'DOA' ? 'rgba(168, 85, 247, 0.1)' : 'rgba(59, 130, 246, 0.1)';
-    color = s === 'INCOME' ? '#4ade80' : s === 'EXPENSE' ? '#fca5a5' : s === 'DOA' ? '#c084fc' : '#60a5fa';
-    border = `1px solid ${s === 'INCOME' ? 'rgba(34, 197, 94, 0.2)' : s === 'EXPENSE' ? 'rgba(239, 68, 68, 0.2)' : s === 'DOA' ? 'rgba(168, 85, 247, 0.2)' : 'rgba(59, 130, 246, 0.2)'}`;
+    label = s === 'INCOME' ? 'Ingreso' : s === 'EXPENSE' ? 'Egreso' : s === 'DOA' ? 'DOA' : s === 'SAVING' ? 'Ahorro' : 'Transferencia';
+    bgcolor = s === 'INCOME' ? 'rgba(34, 197, 94, 0.1)' : s === 'EXPENSE' ? 'rgba(239, 68, 68, 0.1)' : s === 'DOA' ? 'rgba(168, 85, 247, 0.1)' : s === 'SAVING' ? 'rgba(251, 191, 36, 0.1)' : 'rgba(59, 130, 246, 0.1)';
+    color = s === 'INCOME' ? '#4ade80' : s === 'EXPENSE' ? '#fca5a5' : s === 'DOA' ? '#c084fc' : s === 'SAVING' ? '#fbbf24' : '#60a5fa';
+    border = `1px solid ${s === 'INCOME' ? 'rgba(34, 197, 94, 0.2)' : s === 'EXPENSE' ? 'rgba(239, 68, 68, 0.2)' : s === 'DOA' ? 'rgba(168, 85, 247, 0.2)' : s === 'SAVING' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(59, 130, 246, 0.2)'}`;
   } else if (type === 'categoryType') {
     const s = String(status).toUpperCase();
-    label = s === 'INCOME' ? 'Ingreso' : s === 'EXPENSE' ? 'Egreso' : 'Distribución DOA';
-    bgcolor = s === 'INCOME' ? 'rgba(34, 197, 94, 0.1)' : s === 'EXPENSE' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(168, 85, 247, 0.1)';
-    color = s === 'INCOME' ? '#4ade80' : s === 'EXPENSE' ? '#fca5a5' : '#c084fc';
-    border = `1px solid ${s === 'INCOME' ? 'rgba(34, 197, 94, 0.2)' : s === 'EXPENSE' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`;
+    label = s === 'INCOME' ? 'Ingreso' : s === 'EXPENSE' ? 'Egreso' : s === 'SAVING' ? 'Ahorro' : 'Distribución DOA';
+    bgcolor = s === 'INCOME' ? 'rgba(34, 197, 94, 0.1)' : s === 'EXPENSE' ? 'rgba(239, 68, 68, 0.1)' : s === 'SAVING' ? 'rgba(251, 191, 36, 0.1)' : 'rgba(168, 85, 247, 0.1)';
+    color = s === 'INCOME' ? '#4ade80' : s === 'EXPENSE' ? '#fca5a5' : s === 'SAVING' ? '#fbbf24' : '#c084fc';
+    border = `1px solid ${s === 'INCOME' ? 'rgba(34, 197, 94, 0.2)' : s === 'EXPENSE' ? 'rgba(239, 68, 68, 0.2)' : s === 'SAVING' ? 'rgba(251, 191, 36, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`;
   } else {
     // Normal states: e.g. ACTIVE, LOCKED, COMPLETED, IN_PROGRESS, etc.
     const s = String(status).toUpperCase();

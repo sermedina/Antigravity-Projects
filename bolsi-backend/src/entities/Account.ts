@@ -21,7 +21,7 @@ export class Account {
   @Column({ type: 'decimal', precision: 15, scale: 2, default: 0.00 })
   balance: number;
 
-  @Column({ type: 'varchar', length: 3, default: 'USD' })
+  @Column({ type: 'varchar', length: 10, default: 'USD' })
   currency: string;
 
   @ManyToOne(() => Bank, { nullable: true, onDelete: 'SET NULL' })

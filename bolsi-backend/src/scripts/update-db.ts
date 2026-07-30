@@ -42,6 +42,8 @@ async function main() {
       ('BINA', 'Binance', '/uploads/banks/binance.png')
     ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, logo_url = EXCLUDED.logo_url;
 
+    ALTER TABLE accounts ALTER COLUMN currency TYPE VARCHAR(10);
+
     ALTER TABLE debts ADD COLUMN IF NOT EXISTS urgency integer DEFAULT 5;
     ALTER TABLE debts ADD COLUMN IF NOT EXISTS start_date date;
     ALTER TABLE debts ADD COLUMN IF NOT EXISTS interest_period varchar(20) DEFAULT 'monthly';

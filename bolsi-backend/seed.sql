@@ -230,7 +230,8 @@ INSERT INTO banks (code, name, logo_url) VALUES
   ('0175', 'Banco Digital de Los Trabajadores, Banco Universal C.A.', '/uploads/banks/generic.png'),
   ('0177', 'Banco de la Fuerza Armada Nacional Bolivariana, B.U.', '/uploads/banks/generic.png'),
   ('0178', 'N58 Banco Digital, S.A.', '/uploads/banks/generic.png'),
-  ('0191', 'Banco Nacional de Crédito, C.A. Banco Universal', '/uploads/banks/generic.png')
+  ('0191', 'Banco Nacional de Crédito, C.A. Banco Universal', '/uploads/banks/generic.png'),
+  ('BINA', 'Binance', '/uploads/banks/binance.png')
 ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, logo_url = EXCLUDED.logo_url;
 
 -- =============================================================

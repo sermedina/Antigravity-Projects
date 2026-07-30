@@ -421,11 +421,29 @@ export default function FinancesScreen() {
     return total;
   }, [transactions]);
 
-  const formatCurrency = (val: number, currency: string = 'USD') => {
-    return new Intl.NumberFormat(currency === 'VES' || currency === 'Bs' ? 'es-VE' : 'en-US', {
-      style: 'currency',
-      currency: currency === 'VES' || currency === 'Bs' ? 'VES' : 'USD'
-    }).format(val);
+  const formatCurrency = (val: number, currencyCode: string = 'USD') => {
+    if (currencyCode === 'VES' || currencyCode === 'Bs') {
+      return new Intl.NumberFormat('es-VE', {
+        style: 'currency',
+        currency: 'VES'
+      }).format(val);
+    } else if (currencyCode === 'EUR') {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'EUR'
+      }).format(val);
+    } else if (currencyCode === 'USDT') {
+      const formattedNum = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(val);
+      return `₮${formattedNum}`;
+    } else {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD'
+      }).format(val);
+    }
   };
 
   return (
@@ -610,7 +628,7 @@ export default function FinancesScreen() {
                       ]}
                     >
                       {tx.type === 'EXPENSE' || tx.type === 'DOA' || tx.type === 'SAVING' ? '-' : tx.type === 'INCOME' ? '+' : ''}
-                      {formatCurrency(Number(tx.amount))}
+                      {formatCurrency(Number(tx.amount), tx.account?.currency)}
                     </Text>
                   </Card.Content>
                 </Card>
@@ -821,6 +839,8 @@ export default function FinancesScreen() {
                     buttons={[
                       { value: 'USD', label: 'USD ($)' },
                       { value: 'VES', label: 'Bs (VES)' },
+                      { value: 'EUR', label: 'EUR (€)' },
+                      { value: 'USDT', label: 'USDT (₮)' },
                     ]}
                   />
                 </View>

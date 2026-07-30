@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, RefreshControl, Dimensions } from 'react-native';
-import { Text, Card, Title, Paragraph, useTheme, ActivityIndicator, IconButton } from 'react-native-paper';
+import { Text, Card, Title, Paragraph, useTheme, ActivityIndicator, IconButton, Menu, Button } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { accountService } from '../../services/account.service';
 import { transactionService } from '../../services/transaction.service';
@@ -18,6 +18,45 @@ export default function HomeScreen() {
   const theme = useTheme();
   const { user, activeUserId } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Estados para monedas y tasas de cambio
+  const [selectedCurrency, setSelectedCurrency] = useState<'USD' | 'EUR' | 'USDT'>('USD');
+  const [currencyMenuVisible, setCurrencyMenuVisible] = useState(false);
+  const [rates, setRates] = useState({ usd_bcv: 745.6371, eur_bcv: 848.8258, usdt_paralelo: 820.00 });
+
+  const fetchRates = async () => {
+    try {
+      // 1. Obtener Dólar oficial y paralelo
+      const usdRes = await fetch('https://ve.dolarapi.com/v1/dolares');
+      if (usdRes.ok) {
+        const usdData = await usdRes.json();
+        const oficial = usdData.find((d: any) => d.fuente === 'oficial')?.promedio;
+        const paralelo = usdData.find((d: any) => d.fuente === 'paralelo')?.promedio;
+        setRates((prev) => ({
+          ...prev,
+          ...(oficial ? { usd_bcv: Number(oficial) } : {}),
+          ...(paralelo ? { usdt_paralelo: Number(paralelo) } : {}),
+        }));
+      }
+
+      // 2. Obtener Euro oficial
+      const eurRes = await fetch('https://ve.dolarapi.com/v1/euros');
+      if (eurRes.ok) {
+        const eurData = await eurRes.json();
+        const oficial = eurData.find((e: any) => e.fuente === 'oficial')?.promedio;
+        setRates((prev) => ({
+          ...prev,
+          ...(oficial ? { eur_bcv: Number(oficial) } : {}),
+        }));
+      }
+    } catch (err) {
+      console.error('Error al consultar tasas de cambio:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRates();
+  }, []);
 
   // Consultar todos los datos requeridos mediante React Query
   const { data: accounts, refetch: refetchAccounts, isLoading: loadingAccounts } = useQuery({
@@ -53,36 +92,69 @@ export default function HomeScreen() {
       refetchDebts(),
       refetchInvestments(),
       refetchGoals(),
+      fetchRates(),
     ]);
     setRefreshing(false);
   };
 
   const isLoading = loadingAccounts || loadingTx || loadingDebts || loadingInvestments || loadingGoals;
 
+  // Función de conversión general
+  const convertValue = (val: number, fromCurrency: string, toCurrency: string) => {
+    const usdRate = rates.usd_bcv;
+    const eurRate = rates.eur_bcv;
+    const usdtRate = rates.usdt_paralelo;
+
+    // 1. Convertir a VES primero
+    let valInVes = val;
+    if (fromCurrency === 'USD') {
+      valInVes = val * usdRate;
+    } else if (fromCurrency === 'EUR') {
+      valInVes = val * eurRate;
+    } else if (fromCurrency === 'USDT') {
+      valInVes = val * usdtRate;
+    } else if (fromCurrency === 'VES') {
+      valInVes = val;
+    }
+
+    // 2. Convertir de VES a la moneda de destino
+    if (toCurrency === 'USD') {
+      return valInVes / usdRate;
+    } else if (toCurrency === 'EUR') {
+      return valInVes / eurRate;
+    } else if (toCurrency === 'USDT') {
+      return valInVes / usdtRate;
+    } else {
+      return valInVes;
+    }
+  };
+
   // 1. Cálculos de Métricas Financieras
   const metrics = useMemo(() => {
+    const convert = (val: number, from: string) => {
+      return convertValue(val, from, selectedCurrency);
+    };
+
     // Balance total (suma de todas las cuentas)
-    const balanceTotal = accounts?.reduce((sum, acc) => sum + Number(acc.balance), 0) || 0;
+    const balanceTotal = accounts?.reduce((sum, acc) => {
+      return sum + convert(Number(acc.balance), acc.currency);
+    }, 0) || 0;
 
     // Ingresos y egresos totales acumulados
     let totalIngresos = 0;
     let totalEgresos = 0;
     if (transactions) {
       transactions.forEach((tx) => {
-        const amt = Number(tx.amount);
-        if (tx.type === 'INCOME') totalIngresos += amt;
-        else if (tx.type === 'EXPENSE') totalEgresos += amt;
+        const amtInDisplay = convert(Number(tx.amount), tx.account?.currency || 'USD');
+        if (tx.type === 'INCOME') totalIngresos += amtInDisplay;
+        else if (tx.type === 'EXPENSE') totalEgresos += amtInDisplay;
       });
     }
 
-    // Deudas totales
-    const totalDeudas = debts?.reduce((sum, d) => sum + Number(d.remaining_amount), 0) || 0;
-
-    // Inversiones totales
-    const totalInversiones = investments?.reduce((sum, inv) => sum + Number(inv.current_value), 0) || 0;
-
-    // Metas totales acumuladas
-    const totalMetas = goals?.reduce((sum, g) => sum + Number(g.current_amount), 0) || 0;
+    // Deudas, Inversiones y Metas (originalmente en USD) convertidos a la moneda seleccionada
+    const totalDeudas = debts?.reduce((sum, d) => sum + convert(Number(d.remaining_amount), 'USD'), 0) || 0;
+    const totalInversiones = investments?.reduce((sum, inv) => sum + convert(Number(inv.current_value), 'USD'), 0) || 0;
+    const totalMetas = goals?.reduce((sum, g) => sum + convert(Number(g.current_amount), 'USD'), 0) || 0;
 
     return {
       balanceTotal,
@@ -92,7 +164,7 @@ export default function HomeScreen() {
       totalInversiones,
       totalMetas,
     };
-  }, [accounts, transactions, debts, investments, goals]);
+  }, [accounts, transactions, debts, investments, goals, selectedCurrency, rates]);
 
   // 2. Gráfico: Distribución de Egresos por Categorías
   const pieChartData = useMemo(() => {
@@ -103,7 +175,8 @@ export default function HomeScreen() {
       .filter((tx) => tx.type === 'EXPENSE')
       .forEach((tx) => {
         const catName = tx.category?.name || 'Otros';
-        categoryMap[catName] = (categoryMap[catName] || 0) + Number(tx.amount);
+        const convertedAmt = convertValue(Number(tx.amount), tx.account?.currency || 'USD', selectedCurrency);
+        categoryMap[catName] = (categoryMap[catName] || 0) + convertedAmt;
       });
 
     const colors = ['#5D3FD3', '#EF4444', '#10B981', '#F59E0B', '#3B82F6', '#EC4899', '#64748B'];
@@ -114,7 +187,7 @@ export default function HomeScreen() {
       legendFontColor: theme.colors.onBackground,
       legendFontSize: 12,
     }));
-  }, [transactions, theme]);
+  }, [transactions, theme, selectedCurrency, rates]);
 
   // 3. Gráfico: Tendencia de Ingresos y Egresos (Últimas transacciones o meses)
   const lineChartData = useMemo(() => {
@@ -131,7 +204,10 @@ export default function HomeScreen() {
       const d = new Date(tx.transaction_date);
       return `${d.getDate()}/${d.getMonth() + 1}`;
     });
-    const dataset = list.map((tx) => Number(tx.amount) * (tx.type === 'EXPENSE' ? -1 : 1));
+    const dataset = list.map((tx) => {
+      const convertedAmt = convertValue(Number(tx.amount), tx.account?.currency || 'USD', selectedCurrency);
+      return convertedAmt * (tx.type === 'EXPENSE' ? -1 : 1);
+    });
 
     return {
       labels,
@@ -143,7 +219,7 @@ export default function HomeScreen() {
         },
       ],
     };
-  }, [transactions]);
+  }, [transactions, selectedCurrency, rates]);
 
   if (isLoading && !refreshing) {
     return (
@@ -154,11 +230,30 @@ export default function HomeScreen() {
     );
   }
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(val);
+  const formatCurrency = (val: number, currencyCode: 'USD' | 'EUR' | 'USDT' | 'VES' = selectedCurrency) => {
+    if (currencyCode === 'USD') {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+      }).format(val);
+    } else if (currencyCode === 'EUR') {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'EUR',
+      }).format(val);
+    } else if (currencyCode === 'VES') {
+      return new Intl.NumberFormat('es-VE', {
+        style: 'currency',
+        currency: 'VES',
+      }).format(val);
+    } else {
+      // USDT
+      const formattedNum = new Intl.NumberFormat('en-US', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }).format(val);
+      return `₮${formattedNum}`;
+    }
   };
 
   return (
@@ -173,15 +268,46 @@ export default function HomeScreen() {
       >
         {/* Saludo Inicial */}
         <View style={styles.welcomeRow}>
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.welcomeText}>Hola, {user?.first_name || 'Usuario'}</Text>
             <Text style={styles.dateText}>Bienvenido de vuelta a Bolsi</Text>
           </View>
-          <IconButton
-            icon="bell-outline"
-            size={24}
-            onPress={() => {}}
-          />
+          <View style={styles.headerActions}>
+            <Menu
+              visible={currencyMenuVisible}
+              onDismiss={() => setCurrencyMenuVisible(false)}
+              anchor={
+                <Button
+                  mode="outlined"
+                  compact
+                  onPress={() => setCurrencyMenuVisible(true)}
+                  icon="chevron-down"
+                  contentStyle={{ flexDirection: 'row-reverse' }}
+                  style={styles.currencyButton}
+                  labelStyle={{ fontSize: 12, fontWeight: 'bold' }}
+                >
+                  {selectedCurrency}
+                </Button>
+              }
+            >
+              <Menu.Item onPress={() => { setSelectedCurrency('USD'); setCurrencyMenuVisible(false); }} title="USD ($)" />
+              <Menu.Item onPress={() => { setSelectedCurrency('EUR'); setCurrencyMenuVisible(false); }} title="EUR (€)" />
+              <Menu.Item onPress={() => { setSelectedCurrency('USDT'); setCurrencyMenuVisible(false); }} title="USDT (₮)" />
+            </Menu>
+            <IconButton
+              icon="bell-outline"
+              size={24}
+              onPress={() => {}}
+              style={{ margin: 0 }}
+            />
+          </View>
+        </View>
+
+        {/* Tasas de Cambio Bar */}
+        <View style={styles.ratesBar}>
+          <Text style={styles.ratesText}>
+            BCV USD: {rates.usd_bcv.toFixed(2)} Bs • BCV EUR: {rates.eur_bcv.toFixed(2)} Bs • USDT: {rates.usdt_paralelo.toFixed(2)} Bs
+          </Text>
         </View>
 
       {/* Balance General Card (Premium Gradient Look) */}
@@ -189,6 +315,9 @@ export default function HomeScreen() {
         <Card.Content>
           <Text style={styles.balanceLabel}>Balance General</Text>
           <Text style={styles.balanceValue}>{formatCurrency(metrics.balanceTotal)}</Text>
+          <Text style={styles.balanceVesValue}>
+            {formatCurrency(convertValue(metrics.balanceTotal, selectedCurrency, 'VES'), 'VES')}
+          </Text>
           <View style={styles.balanceMetricsRow}>
             <View style={styles.balanceSubMetric}>
               <MaterialCommunityIcons name="arrow-up-circle" size={20} color="#34D399" />
@@ -411,5 +540,36 @@ const styles = StyleSheet.create({
   chart: {
     marginVertical: 8,
     borderRadius: 16,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  currencyButton: {
+    borderRadius: 8,
+    borderColor: 'rgba(93, 63, 211, 0.3)',
+    height: 38,
+    justifyContent: 'center',
+  },
+  ratesBar: {
+    backgroundColor: 'rgba(93, 63, 211, 0.05)',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  ratesText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  balanceVesValue: {
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: -8,
+    marginBottom: 12,
   },
 });

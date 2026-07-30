@@ -504,12 +504,31 @@ export default function PlanningScreen() {
                       {g.description && <Text style={styles.cardSub}>{g.description}</Text>}
                     </View>
                     {activeAccessLevel !== 'READ_ONLY' && (
-                      <IconButton
-                        icon="piggy-bank"
-                        iconColor={theme.colors.primary}
-                        size={24}
+                      <TouchableOpacity
                         onPress={() => openGoalContrib(g)}
-                      />
+                        style={styles.contribButton}
+                      >
+                        <Text style={[styles.contribLabel, { color: theme.colors.primary }]}>
+                          Abonar
+                        </Text>
+                        <View style={styles.contribIconWrapper}>
+                          <Animated.View
+                            style={[
+                              styles.contribPulseRing,
+                              {
+                                transform: [{ scale: pulseAnim }],
+                                opacity: opacityAnim,
+                                backgroundColor: theme.colors.primary,
+                              },
+                            ]}
+                          />
+                          <MaterialCommunityIcons
+                            name="piggy-bank"
+                            size={22}
+                            color={theme.colors.primary}
+                          />
+                        </View>
+                      </TouchableOpacity>
                     )}
                   </View>
                   <ProgressBar progress={progress} color="#D97706" style={styles.progress} />
@@ -1140,6 +1159,33 @@ const styles = StyleSheet.create({
   urgencyBadgeText: {
     color: '#FFFFFF',
     fontSize: 10,
+    fontWeight: 'bold',
+  },
+  contribButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  contribIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  contribPulseRing: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  contribLabel: {
+    fontSize: 13,
     fontWeight: 'bold',
   },
 });

@@ -1,9 +1,14 @@
 import api from './api';
-import { Account } from '../types';
+import { Account, Bank } from '../types';
 
 export const accountService = {
   async getAccounts(): Promise<Account[]> {
     const response = await api.get('/accounts');
+    return response.data;
+  },
+
+  async getBanks(): Promise<Bank[]> {
+    const response = await api.get('/banks');
     return response.data;
   },
 

@@ -10,7 +10,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { IMAGE_BASE_URL } from '../../services/api';
-import { Account, Transaction } from '../../types';
+import { Account, Transaction, Bank } from '../../types';
 import { useAuth } from '../../context/AuthContext';
 import { AccountSwitcher } from '../../components/AccountSwitcher';
 
@@ -20,6 +20,7 @@ const accountSchema = z.object({
   type: z.enum(['BANK', 'CASH', 'CREDIT_CARD']),
   balance: z.coerce.number().min(0, 'El balance debe ser mayor o igual a 0'),
   currency: z.string().default('USD'),
+  bankCode: z.string().optional().nullable(),
 });
 
 const transactionSchema = z.object({
@@ -71,6 +72,8 @@ export default function FinancesScreen() {
   // Modal control states
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [editingAccount, setEditingAccount] = useState<Account | null>(null);
+  const [bankSelectorVisible, setBankSelectorVisible] = useState(false);
+  const [bankSearchQuery, setBankSearchQuery] = useState('');
 
   const [txModalVisible, setTxModalVisible] = useState(false);
   const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
@@ -153,6 +156,22 @@ export default function FinancesScreen() {
     queryFn: () => accountService.getAccounts(),
   });
 
+  const { data: banks, isLoading: loadingBanks } = useQuery({
+    queryKey: ['banks'],
+    queryFn: () => accountService.getBanks(),
+  });
+
+  const filteredBanks = useMemo(() => {
+    if (!banks) return [];
+    if (!bankSearchQuery.trim()) return banks;
+    const query = bankSearchQuery.toLowerCase();
+    return banks.filter(
+      (b) =>
+        b.name.toLowerCase().includes(query) ||
+        b.code.includes(query)
+    );
+  }, [banks, bankSearchQuery]);
+
   const { data: transactions, refetch: refetchTransactions, isLoading: loadingTx } = useQuery({
     queryKey: ['transactions', activeUserId],
     queryFn: () => transactionService.getTransactions(),
@@ -224,10 +243,13 @@ export default function FinancesScreen() {
   });
 
   // React Hook Forms
-  const { control: accountControl, handleSubmit: handleAccountSubmit, reset: resetAccountForm, formState: { errors: accountErrors } } = useForm({
+  const { control: accountControl, handleSubmit: handleAccountSubmit, reset: resetAccountForm, watch: watchAccount, setValue: setAccountValue, formState: { errors: accountErrors } } = useForm({
     resolver: zodResolver(accountSchema),
-    defaultValues: { name: '', type: 'BANK', balance: 0, currency: 'USD' }
+    defaultValues: { name: '', type: 'BANK', balance: 0, currency: 'USD', bankCode: null as string | null }
   });
+
+  const accountTypeWatch = watchAccount('type');
+  const bankCodeWatch = watchAccount('bankCode');
 
   const { control: txControl, handleSubmit: handleTxSubmit, reset: resetTxForm, watch: watchTx, formState: { errors: txErrors } } = useForm({
     resolver: zodResolver(transactionSchema),
@@ -341,13 +363,14 @@ export default function FinancesScreen() {
       type: acc.type,
       balance: Number(acc.balance),
       currency: acc.currency,
+      bankCode: acc.bank?.code || null,
     });
     setAccountModalVisible(true);
   };
 
   const openCreateAccount = () => {
     setEditingAccount(null);
-    resetAccountForm({ name: '', type: 'BANK', balance: 0, currency: 'USD' });
+    resetAccountForm({ name: '', type: 'BANK', balance: 0, currency: 'USD', bankCode: null });
     setAccountModalVisible(true);
   };
 
@@ -398,8 +421,11 @@ export default function FinancesScreen() {
     return total;
   }, [transactions]);
 
-  const formatCurrency = (val: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+  const formatCurrency = (val: number, currency: string = 'USD') => {
+    return new Intl.NumberFormat(currency === 'VES' || currency === 'Bs' ? 'es-VE' : 'en-US', {
+      style: 'currency',
+      currency: currency === 'VES' || currency === 'Bs' ? 'VES' : 'USD'
+    }).format(val);
   };
 
   return (
@@ -428,29 +454,37 @@ export default function FinancesScreen() {
               <Card key={acc.id} style={styles.card} onPress={() => openEditAccount(acc)}>
                 <Card.Content style={styles.accountCardContent}>
                   <View style={styles.accountIconWrapper}>
-                    <IconButton
-                      icon={
-                        acc.type === 'BANK'
-                          ? 'bank'
-                          : acc.type === 'CREDIT_CARD'
-                            ? 'credit-card'
-                            : 'cash-multiple'
-                      }
-                      size={28}
-                      iconColor={theme.colors.primary}
-                    />
+                    {acc.bank?.logo_url ? (
+                      <Image
+                        source={{ uri: `${IMAGE_BASE_URL}${acc.bank.logo_url}` }}
+                        style={styles.accountLogo}
+                        resizeMode="contain"
+                      />
+                    ) : (
+                      <IconButton
+                        icon={
+                          acc.type === 'BANK'
+                            ? 'bank'
+                            : acc.type === 'CREDIT_CARD'
+                              ? 'credit-card'
+                              : 'cash-multiple'
+                        }
+                        size={28}
+                        iconColor={theme.colors.primary}
+                      />
+                    )}
                   </View>
                   <View style={styles.flex1}>
                     <Text style={styles.accountName}>{acc.name}</Text>
                     <Text style={styles.accountType}>
                       {acc.type === 'BANK'
-                        ? 'Banco'
+                        ? `Banco • ${acc.bank?.name || 'Otro'}`
                         : acc.type === 'CREDIT_CARD'
-                          ? 'Tarjeta de Crédito'
+                          ? `Tarjeta de Crédito • ${acc.bank?.name || 'Otra'}`
                           : 'Efectivo'}
                     </Text>
                   </View>
-                  <Text style={styles.accountBalance}>{formatCurrency(Number(acc.balance))}</Text>
+                  <Text style={styles.accountBalance}>{formatCurrency(Number(acc.balance), acc.currency)}</Text>
                 </Card.Content>
               </Card>
             ))
@@ -732,6 +766,66 @@ export default function FinancesScreen() {
                 />
               )}
             />
+            {(accountTypeWatch === 'BANK' || accountTypeWatch === 'CREDIT_CARD') && (
+              <Controller
+                control={accountControl}
+                name="bankCode"
+                render={({ field: { onChange, value } }) => {
+                  const selectedBank = banks?.find((b) => b.code === value);
+                  return (
+                    <View style={styles.selectContainer}>
+                      <Text style={styles.label}>Banco Asociado</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setBankSearchQuery('');
+                          setBankSelectorVisible(true);
+                        }}
+                        style={[
+                          styles.bankSelector,
+                          {
+                            borderColor: theme.dark ? '#334155' : '#E2E8F0',
+                            backgroundColor: theme.dark ? '#1E293B' : '#F8FAFC',
+                          },
+                        ]}
+                      >
+                        {selectedBank ? (
+                          <View style={styles.bankSelectorContent}>
+                            <Image
+                              source={{ uri: `${IMAGE_BASE_URL}${selectedBank.logo_url}` }}
+                              style={styles.bankSelectorLogo}
+                              resizeMode="contain"
+                            />
+                            <Text style={styles.bankSelectorText} numberOfLines={1}>
+                              {selectedBank.name}
+                            </Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.bankSelectorPlaceholder}>Seleccionar Banco...</Text>
+                        )}
+                        <IconButton icon="chevron-down" size={20} style={{ margin: 0 }} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                }}
+              />
+            )}
+            <Controller
+              control={accountControl}
+              name="currency"
+              render={({ field: { onChange, value } }) => (
+                <View style={styles.segmentedWrapper}>
+                  <Text style={styles.label}>Moneda</Text>
+                  <SegmentedButtons
+                    value={value}
+                    onValueChange={onChange}
+                    buttons={[
+                      { value: 'USD', label: 'USD ($)' },
+                      { value: 'VES', label: 'Bs (VES)' },
+                    ]}
+                  />
+                </View>
+              )}
+            />
           </Dialog.Content>
           <Dialog.Actions>
             {editingAccount && activeAccessLevel !== 'READ_ONLY' && (
@@ -746,6 +840,56 @@ export default function FinancesScreen() {
             {activeAccessLevel !== 'READ_ONLY' && (
               <Button onPress={handleAccountSubmit(onAccountSubmit)}>Guardar</Button>
             )}
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+
+      {/* MODAL: SELECT BANK */}
+      <Portal>
+        <Dialog visible={bankSelectorVisible} onDismiss={() => setBankSelectorVisible(false)} style={styles.bankDialog}>
+          <Dialog.Title>Seleccionar Banco</Dialog.Title>
+          <Dialog.Content style={styles.dialogScrollArea}>
+            <TextInput
+              mode="outlined"
+              label="Buscar banco..."
+              value={bankSearchQuery}
+              onChangeText={setBankSearchQuery}
+              style={{ marginBottom: 12 }}
+              left={<TextInput.Icon icon="magnify" />}
+            />
+            {loadingBanks ? (
+              <ActivityIndicator size="small" style={{ marginVertical: 20 }} />
+            ) : (
+              <FlatList
+                data={filteredBanks}
+                keyExtractor={(item) => item.code}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.bankRow}
+                    onPress={() => {
+                      setAccountValue('bankCode', item.code);
+                      setBankSelectorVisible(false);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: `${IMAGE_BASE_URL}${item.logo_url}` }}
+                      style={styles.bankRowLogo}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.bankRowTextWrap}>
+                      <Text style={styles.bankRowCode}>{item.code}</Text>
+                      <Text style={styles.bankRowName} numberOfLines={1}>{item.name}</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                ItemSeparatorComponent={() => <Divider />}
+                style={{ height: 250 }}
+                nestedScrollEnabled={true}
+              />
+            )}
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setBankSelectorVisible(false)}>Cancelar</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -790,7 +934,7 @@ export default function FinancesScreen() {
                           onPress={() => onChange(item.id)}
                         >
                           <Text style={{ fontWeight: value === item.id ? '700' : '400' }}>
-                            {item.name} ({formatCurrency(Number(item.balance))})
+                            {item.name} ({formatCurrency(Number(item.balance), item.currency)})
                           </Text>
                         </TouchableOpacity>
                       )}
@@ -869,7 +1013,7 @@ export default function FinancesScreen() {
                 <View style={styles.doaFieldsContainer}>
                   <View style={styles.doaBalanceInfo}>
                     <Text style={styles.doaBalanceInfoLabel}>Saldo disponible en la cuenta:</Text>
-                    <Text style={styles.doaBalanceInfoValue}>{formatCurrency(currentAccountBalance)}</Text>
+                    <Text style={styles.doaBalanceInfoValue}>{formatCurrency(currentAccountBalance, selectedAccount?.currency)}</Text>
                   </View>
 
                   <Text style={styles.doaSubtitle}>Distribución de Porcentajes</Text>
@@ -895,7 +1039,7 @@ export default function FinancesScreen() {
                     </View>
                     <View style={styles.doaValueWrap}>
                       <Text style={styles.doaCalculatedVal}>
-                        Diezmo: {formatCurrency((currentAccountBalance * Number(watchTithePercent || 0)) / 100)}
+                        Diezmo: {formatCurrency((currentAccountBalance * Number(watchTithePercent || 0)) / 100, selectedAccount?.currency)}
                       </Text>
                     </View>
                   </View>
@@ -921,7 +1065,7 @@ export default function FinancesScreen() {
                     </View>
                     <View style={styles.doaValueWrap}>
                       <Text style={styles.doaCalculatedVal}>
-                        Ofrenda: {formatCurrency((currentAccountBalance * Number(watchOfferingPercent || 0)) / 100)}
+                        Ofrenda: {formatCurrency((currentAccountBalance * Number(watchOfferingPercent || 0)) / 100, selectedAccount?.currency)}
                       </Text>
                     </View>
                   </View>
@@ -947,7 +1091,7 @@ export default function FinancesScreen() {
                     </View>
                     <View style={styles.doaValueWrap}>
                       <Text style={styles.doaCalculatedVal}>
-                        Ahorro: {formatCurrency((currentAccountBalance * Number(watchSavingsPercent || 0)) / 100)}
+                        Ahorro: {formatCurrency((currentAccountBalance * Number(watchSavingsPercent || 0)) / 100, selectedAccount?.currency)}
                       </Text>
                     </View>
                   </View>
@@ -965,7 +1109,8 @@ export default function FinancesScreen() {
                       {formatCurrency(
                         ((currentAccountBalance * Number(watchTithePercent || 0)) / 100) +
                         ((currentAccountBalance * Number(watchOfferingPercent || 0)) / 100) +
-                        ((currentAccountBalance * Number(watchSavingsPercent || 0)) / 100)
+                        ((currentAccountBalance * Number(watchSavingsPercent || 0)) / 100),
+                        selectedAccount?.currency
                       )}
                     </Text>
                   </View>
@@ -1084,7 +1229,7 @@ export default function FinancesScreen() {
                     },
                   ]}
                 >
-                  {formatCurrency(Number(selectedTx.amount))}
+                  {formatCurrency(Number(selectedTx.amount), selectedTx.account?.currency)}
                 </Text>
 
                 <Text style={styles.detailLabel}>Cuenta:</Text>
@@ -1101,7 +1246,7 @@ export default function FinancesScreen() {
                     <Text style={styles.detailLabel}>Asignaciones DOA (Diezmo/Ofrenda/Ahorro):</Text>
                     {selectedTx.doa_allocations.map((alloc) => (
                       <Text key={alloc.id} style={styles.doaText}>
-                        • {alloc.doa_type === 'TITHE' ? 'Diezmo' : alloc.doa_type === 'OFFERING' ? 'Ofrenda' : 'Ahorro'}: {formatCurrency(Number(alloc.amount))}
+                        • {alloc.doa_type === 'TITHE' ? 'Diezmo' : alloc.doa_type === 'OFFERING' ? 'Ofrenda' : 'Ahorro'}: {formatCurrency(Number(alloc.amount), selectedTx.account?.currency)}
                       </Text>
                     ))}
                     <Divider style={styles.divider} />
@@ -1440,5 +1585,79 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#374151',
     marginTop: 2,
+  },
+  accountLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  bankSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 56,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginTop: 4,
+  },
+  bankSelectorContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  bankSelectorLogo: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  bankSelectorText: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+  },
+  bankSelectorPlaceholder: {
+    fontSize: 15,
+    opacity: 0.5,
+  },
+  bankDialog: {
+    maxHeight: '80%',
+  },
+  dialogScrollArea: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
+  },
+  bankRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+  },
+  bankRowLogo: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  bankRowTextWrap: {
+    flex: 1,
+  },
+  bankRowCode: {
+    fontSize: 11,
+    opacity: 0.5,
+    fontWeight: 'bold',
+  },
+  bankRowName: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });

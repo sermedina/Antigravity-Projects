@@ -37,12 +37,19 @@ export interface SharedAccess {
   created_at: string;
 }
 
+export interface Bank {
+  code: string;
+  name: string;
+  logo_url?: string;
+}
+
 export interface Account {
   id: number;
   name: string;
   type: 'BANK' | 'CASH' | 'CREDIT_CARD';
   balance: number;
   currency: string;
+  bank?: Bank;
 }
 
 export interface Category {

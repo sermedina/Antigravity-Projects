@@ -1,6 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { User } from './User';
 import { Transaction } from './Transaction';
+import { Bank } from './Bank';
 
 @Entity('accounts')
 export class Account {
@@ -22,6 +23,10 @@ export class Account {
 
   @Column({ type: 'varchar', length: 3, default: 'USD' })
   currency: string;
+
+  @ManyToOne(() => Bank, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'bank_code' })
+  bank: Bank | null;
 
   @OneToMany(() => Transaction, (transaction: Transaction) => transaction.account)
   transactions: Transaction[];

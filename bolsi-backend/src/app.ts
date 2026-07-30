@@ -12,6 +12,7 @@ import contentRoutes from './routes/content.routes';
 import reminderRoutes from './routes/reminder.routes';
 import sharedAccessAuditRoutes from './routes/shared-access-audit.routes';
 import accountRoutes from './routes/account.routes';
+import bankRoutes from './routes/bank.routes';
 
 const app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/educational-contents', contentRoutes);
 app.use('/api/reminders', reminderRoutes);
 app.use('/api/shared-access-audits', sharedAccessAuditRoutes);
 app.use('/api/accounts', accountRoutes);
+app.use('/api/banks', bankRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK' });

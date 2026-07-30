@@ -45,6 +45,8 @@ async function main() {
     ALTER TABLE debts ADD COLUMN IF NOT EXISTS start_date date;
     ALTER TABLE debts ADD COLUMN IF NOT EXISTS interest_period varchar(20) DEFAULT 'monthly';
 
+    ALTER TABLE investments ADD COLUMN IF NOT EXISTS custom_asset_type VARCHAR(100);
+
     CREATE OR REPLACE FUNCTION update_investment_current_value()
     RETURNS TRIGGER AS $$
     BEGIN

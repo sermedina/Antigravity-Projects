@@ -17,6 +17,9 @@ export class Investment {
   @Column({ type: 'varchar', length: 50 })
   asset_type: string; // 'STOCK', 'CRYPTO', 'REAL_ESTATE', 'OTHER'
 
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'custom_asset_type' })
+  custom_asset_type: string;
+
   @Column({ type: 'varchar', length: 100, nullable: true })
   platform: string;
 

@@ -9,5 +9,5 @@ export class Bank {
   name: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true, name: 'logo_url' })
-  logoUrl: string;
+  logo_url: string;
 }

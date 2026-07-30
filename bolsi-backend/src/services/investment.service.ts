@@ -73,6 +73,7 @@ export class InvestmentService {
 
     if (data.name !== undefined) inv.name = data.name;
     if (data.asset_type !== undefined) inv.asset_type = data.asset_type;
+    if (data.custom_asset_type !== undefined) inv.custom_asset_type = data.custom_asset_type;
     if (data.platform !== undefined) inv.platform = data.platform;
     if (data.current_value !== undefined) inv.current_value = data.current_value.toString();
 

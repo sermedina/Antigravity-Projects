@@ -110,6 +110,7 @@ export interface Investment {
   id: number;
   name: string;
   asset_type: 'STOCK' | 'CRYPTO' | 'REAL_ESTATE' | 'OTHER';
+  custom_asset_type?: string;
   platform?: string;
   current_value: number;
   transactions?: InvestmentTransaction[];

@@ -29,9 +29,21 @@ const debtSchema = z.object({
 const investmentSchema = z.object({
   name: z.string().min(1, 'El nombre de la inversión es requerido'),
   asset_type: z.enum(['STOCK', 'CRYPTO', 'REAL_ESTATE', 'OTHER']),
+  custom_asset_type: z.string().optional(),
   platform: z.string().optional(),
   current_value: z.coerce.number().min(0),
-});
+}).refine(
+  (data) => {
+    if (data.asset_type === 'OTHER') {
+      return !!data.custom_asset_type && data.custom_asset_type.trim().length > 0;
+    }
+    return true;
+  },
+  {
+    message: 'Por favor, describe el tipo de activo',
+    path: ['custom_asset_type'],
+  }
+);
 
 const goalSchema = z.object({
   name: z.string().min(1, 'El nombre de la meta es requerido'),
@@ -220,10 +232,12 @@ export default function PlanningScreen() {
     defaultValues: { counterparty_name: '', total_amount: 0, debt_type: 'I_OWE', interest_rate: 0, interest_period: 'monthly' as const, urgency: 5, due_date: '', start_date: new Date().toISOString().split('T')[0] }
   });
 
-  const { control: invControl, handleSubmit: handleInvSubmit, reset: resetInvForm } = useForm({
+  const { control: invControl, handleSubmit: handleInvSubmit, reset: resetInvForm, watch: watchInv } = useForm({
     resolver: zodResolver(investmentSchema),
-    defaultValues: { name: '', asset_type: 'STOCK', platform: '', current_value: 0 }
+    defaultValues: { name: '', asset_type: 'STOCK' as const, custom_asset_type: '', platform: '', current_value: 0 }
   });
+
+  const watchedAssetType = watchInv('asset_type');
 
   const { control: goalControl, handleSubmit: handleGoalSubmit, reset: resetGoalForm } = useForm({
     resolver: zodResolver(goalSchema),
@@ -245,10 +259,14 @@ export default function PlanningScreen() {
   };
 
   const onInvSubmit = (data: any) => {
+    const payload = {
+      ...data,
+      custom_asset_type: data.asset_type === 'OTHER' ? data.custom_asset_type : null
+    };
     if (editingInvestment) {
-      updateInvMutation.mutate({ id: editingInvestment.id, data });
+      updateInvMutation.mutate({ id: editingInvestment.id, data: payload });
     } else {
-      createInvMutation.mutate(data);
+      createInvMutation.mutate(payload);
     }
   };
 
@@ -305,6 +323,7 @@ export default function PlanningScreen() {
     resetInvForm({
       name: inv.name,
       asset_type: inv.asset_type,
+      custom_asset_type: inv.custom_asset_type || '',
       platform: inv.platform || '',
       current_value: Number(inv.current_value),
     });
@@ -435,7 +454,7 @@ export default function PlanningScreen() {
                     <View>
                       <Text style={styles.cardTitle}>{inv.name}</Text>
                       <Text style={styles.cardSub}>
-                        Plataforma: {inv.platform || 'N/A'} • Tipo: {inv.asset_type}
+                        Plataforma: {inv.platform || 'N/A'} • Tipo: {inv.asset_type === 'OTHER' ? (inv.custom_asset_type || 'Otro') : inv.asset_type}
                       </Text>
                     </View>
                     <Text style={styles.invValue}>{formatCurrency(Number(inv.current_value))}</Text>
@@ -553,7 +572,7 @@ export default function PlanningScreen() {
                       setDebtModalVisible(true);
                     } else if (activeSection === 'investments') {
                       setEditingInvestment(null);
-                      resetInvForm({ name: '', asset_type: 'STOCK', platform: '', current_value: 0 });
+                      resetInvForm({ name: '', asset_type: 'STOCK', custom_asset_type: '', platform: '', current_value: 0 });
                       setInvestmentModalVisible(true);
                     } else {
                       setEditingGoal(null);
@@ -806,6 +825,30 @@ export default function PlanningScreen() {
                 </View>
               )}
             />
+            {watchedAssetType === 'OTHER' && (
+              <Controller
+                control={invControl}
+                name="custom_asset_type"
+                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                  <View style={{ marginBottom: 12 }}>
+                    <TextInput
+                      mode="outlined"
+                      label="Describir tipo de activo"
+                      placeholder="Ej. Oro, Arte, Metales"
+                      onBlur={onBlur}
+                      onChangeText={onChange}
+                      value={value || ''}
+                      error={!!error}
+                    />
+                    {error && (
+                      <HelperText type="error" visible={!!error} style={{ paddingHorizontal: 0 }}>
+                        {error.message}
+                      </HelperText>
+                    )}
+                  </View>
+                )}
+              />
+            )}
             <Controller
               control={invControl}
               name="current_value"

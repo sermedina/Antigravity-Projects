@@ -490,6 +490,36 @@ export default function PlanningScreen() {
             const status = g.status || 'IN_PROGRESS';
             const statusLabel = status === 'COMPLETED' ? 'Completada' : status === 'CANCELLED' ? 'Cancelada' : 'En progreso';
             const statusColor = status === 'COMPLETED' ? '#10B981' : status === 'CANCELLED' ? '#EF4444' : '#3B82F6';
+
+            // Calcular abono diario requerido
+            const calculateDailyAmount = () => {
+              const remaining = Number(g.target_amount) - Number(g.current_amount);
+              if (remaining <= 0 || status === 'COMPLETED') return 0;
+              if (!g.deadline) return null;
+              
+              const deadlineDate = new Date(g.deadline);
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              deadlineDate.setHours(0, 0, 0, 0);
+              
+              const diffTime = deadlineDate.getTime() - today.getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              
+              if (diffDays <= 0) return remaining;
+              return remaining / diffDays;
+            };
+
+            const dailyAmount = calculateDailyAmount();
+
+            const getFormattedDeadline = () => {
+              if (!g.deadline) return 'Sin límite';
+              const parts = g.deadline.split('T')[0].split('-');
+              if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+              }
+              return new Date(g.deadline).toLocaleDateString();
+            };
+
             return (
               <Card key={g.id} style={styles.card} onPress={() => openGoalEdit(g)}>
                 <Card.Content>
@@ -535,6 +565,16 @@ export default function PlanningScreen() {
                   <View style={styles.rowBetween}>
                     <Text style={styles.cardProgressText}>Ahorrado: {formatCurrency(Number(g.current_amount))} ({(progress * 100).toFixed(0)}%)</Text>
                     <Text style={styles.cardTargetText}>Meta: {formatCurrency(Number(g.target_amount))}</Text>
+                  </View>
+                  <View style={[styles.rowBetween, { marginTop: 8, borderTopWidth: 1, borderTopColor: theme.dark ? '#334155' : '#E2E8F0', paddingTop: 8 }]}>
+                    <Text style={styles.cardDetailText}>
+                      Límite: {getFormattedDeadline()}
+                    </Text>
+                    {dailyAmount !== null && dailyAmount > 0 ? (
+                      <Text style={styles.cardDetailText}>
+                        Abono diario: {formatCurrency(dailyAmount)}
+                      </Text>
+                    ) : null}
                   </View>
                 </Card.Content>
               </Card>
@@ -1187,5 +1227,10 @@ const styles = StyleSheet.create({
   contribLabel: {
     fontSize: 13,
     fontWeight: 'bold',
+  },
+  cardDetailText: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '500',
   },
 });

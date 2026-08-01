@@ -3,7 +3,7 @@ import { UserController } from '../controllers/user.controller';
 import { authenticateJWT } from '../middlewares/auth.middleware';
 import { authorizeRoles } from '../middlewares/role.middleware';
 import { validate } from '../middlewares/validate.middleware';
-import { toggleStatusSchema, updateProfileSchema, changePasswordSchema, createSharedAccessSchema } from '../validators/user.validator';
+import { toggleStatusSchema, updateProfileSchema, changePasswordSchema, createSharedAccessSchema, registerPushTokenSchema } from '../validators/user.validator';
 
 const router = Router();
 const userController = new UserController();
@@ -17,6 +17,7 @@ router.put('/change-password', validate(changePasswordSchema), userController.ch
 router.get('/shared-access', userController.getSharedAccess);
 router.post('/shared-access', validate(createSharedAccessSchema), userController.createSharedAccess);
 router.delete('/shared-access/:id', userController.deleteSharedAccess);
+router.post('/push-token', validate(registerPushTokenSchema), userController.registerPushToken);
 
 // Rutas de administración
 router.get('/', authorizeRoles('SYSTEM_ADMIN'), userController.getUsers);

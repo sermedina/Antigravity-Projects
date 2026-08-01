@@ -31,3 +31,10 @@ export const createSharedAccessSchema = z.object({
   })
 });
 
+export const registerPushTokenSchema = z.object({
+  body: z.object({
+    token: z.string().min(1),
+    device_name: z.string().optional()
+  })
+});
+

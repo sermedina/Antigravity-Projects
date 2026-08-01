@@ -4,9 +4,10 @@ import { Stack } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { MD3LightTheme, MD3DarkTheme, PaperProvider } from 'react-native-paper';
 import { queryClient } from '../services/queryClient';
-import { AuthProvider } from '../context/AuthContext';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { OfflineProvider, useOffline } from '../context/OfflineContext';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 // Configuración de Paleta de Colores Premium para Bolsi
 // Colores basados en HSL curados: Púrpura Financiero y Slate Gris
@@ -60,6 +61,30 @@ const OfflineBanner = () => {
   );
 };
 
+function MainApp({ theme }: { theme: any }) {
+  const { user } = useAuth();
+
+  // Register push notifications when the user is logged in
+  usePushNotifications(!!user);
+
+  return (
+    <>
+      <OfflineBanner />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: theme.colors.background },
+        }}
+      >
+        {/* Definir las rutas base de navegación */}
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
+        <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
+      </Stack>
+    </>
+  );
+}
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? customDarkTheme : customLightTheme;
@@ -70,18 +95,7 @@ export default function RootLayout() {
         <OfflineProvider>
           <AuthProvider>
             <PaperProvider theme={theme}>
-              <OfflineBanner />
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  contentStyle: { backgroundColor: theme.colors.background },
-                }}
-              >
-                {/* Definir las rutas base de navegación */}
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(auth)" options={{ gestureEnabled: false }} />
-                <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
-              </Stack>
+              <MainApp theme={theme} />
             </PaperProvider>
           </AuthProvider>
         </OfflineProvider>

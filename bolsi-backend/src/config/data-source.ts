@@ -5,6 +5,7 @@ import { User } from '../entities/User';
 import { Role } from '../entities/Role';
 import { SharedAccess } from '../entities/SharedAccess';
 import { VerificationToken } from '../entities/VerificationToken';
+import { PushToken } from '../entities/PushToken';
 import { Account } from '../entities/Account';
 import { Category } from '../entities/Category';
 import { Transaction } from '../entities/Transaction';
@@ -32,7 +33,7 @@ export const AppDataSource = new DataSource({
   synchronize: false, // Auto-create tables (Dev only)
   logging: false,
   entities: [
-    User, Role, SharedAccess, VerificationToken,
+    User, Role, SharedAccess, VerificationToken, PushToken,
     Account, Category, Transaction, DoaAllocation,
     Debt, DebtPayment, Investment, InvestmentTransaction,
     Goal, GoalContribution, Reminder, EducationalContent,

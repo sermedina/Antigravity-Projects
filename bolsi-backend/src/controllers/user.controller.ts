@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import { UserService } from '../services/user.service';
+import { NotificationService } from '../services/notification.service';
 
 const userService = new UserService();
+const notificationService = new NotificationService();
 
 export class UserController {
   async getUsers(req: Request, res: Response) {
@@ -105,6 +107,17 @@ export class UserController {
       const accessId = req.params.id as string;
       const result = await userService.deleteSharedAccess(userId, accessId);
       res.json(result);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  }
+
+  async registerPushToken(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const { token, device_name } = req.body;
+      const result = await notificationService.registerToken(userId, token, device_name);
+      res.status(200).json(result);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
     }

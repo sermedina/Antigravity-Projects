@@ -10,6 +10,15 @@ async function main() {
       logo_url VARCHAR(255)
     );
 
+    CREATE TABLE IF NOT EXISTS push_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      token VARCHAR(255) UNIQUE NOT NULL,
+      device_name VARCHAR(255),
+      created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    );
+
     ALTER TABLE accounts ADD COLUMN IF NOT EXISTS bank_code VARCHAR(4) REFERENCES banks(code) ON DELETE SET NULL;
 
     INSERT INTO banks (code, name, logo_url) VALUES

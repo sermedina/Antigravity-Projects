@@ -4,14 +4,19 @@ import { VerificationToken } from '../entities/VerificationToken';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
+import { EmailService } from './email.service';
 
 export class AuthService {
   private userRepository = AppDataSource.getRepository(User);
   private tokenRepository = AppDataSource.getRepository(VerificationToken);
+  private emailService = new EmailService();
 
   async register(data: any) {
-    const existing = await this.userRepository.findOneBy({ username: data.username });
-    if (existing) throw new Error('User already exists');
+    const existingUsername = await this.userRepository.findOneBy({ username: data.username });
+    if (existingUsername) throw new Error('Usuario existente');
+
+    const existingEmail = await this.userRepository.findOneBy({ email: data.email });
+    if (existingEmail) throw new Error('Correo existente');
 
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const user: User = this.userRepository.create({
@@ -21,8 +26,8 @@ export class AuthService {
 
     await this.userRepository.save(user);
 
-    // Generate Verification Token
-    const tokenStr = randomBytes(32).toString('hex');
+    // Generate 6-digit OTP Verification Code
+    const tokenStr = Math.floor(100000 + Math.random() * 900000).toString();
     const token = this.tokenRepository.create({
       user: { id: user.id },
       token: tokenStr,
@@ -32,7 +37,7 @@ export class AuthService {
     });
     await this.tokenRepository.save(token);
 
-    // TODO: Send Email here
+    await this.emailService.sendVerificationEmail(user.email, tokenStr);
 
     return { message: 'User registered. Please verify your email.', userId: user.id };
   }

@@ -42,7 +42,7 @@ export default function VerifyScreen() {
       }, 2500);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.response?.data?.error || err.message || 'El token es inválido o ha expirado');
+      setErrorMsg(err.response?.data?.error || err.message || 'El código OTP es inválido o ha expirado');
     } finally {
       setLoading(false);
     }
@@ -58,7 +58,7 @@ export default function VerifyScreen() {
           <Card.Content style={styles.cardContent}>
             <Text style={styles.title}>Verificar Cuenta</Text>
             <Text style={styles.description}>
-              Hemos enviado un correo con un token de verificación. Por favor, ingrésalo aquí para activar tu cuenta.
+              Hemos enviado un correo con un código OTP de verificación de 6 dígitos. Por favor, ingrésalo aquí para activar tu cuenta.
             </Text>
 
             {errorMsg && (
@@ -106,7 +106,7 @@ export default function VerifyScreen() {
                 <View style={styles.inputContainer}>
                   <TextInput
                     mode="outlined"
-                    label="Token de Verificación"
+                    label="Código de Verificación (OTP)"
                     onBlur={onBlur}
                     onChangeText={onChange}
                     value={value}

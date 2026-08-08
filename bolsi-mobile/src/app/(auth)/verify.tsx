@@ -6,10 +6,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useAuth } from '../../context/AuthContext';
 import { router, useLocalSearchParams } from 'expo-router';
+import OtpInput from '../../components/OtpInput';
 
 const verifySchema = z.object({
   email: z.string().email('Por favor ingrese un correo válido'),
-  token: z.string().min(1, 'El código es requerido'),
+  token: z.string().length(6, 'El código debe tener exactamente 6 dígitos').regex(/^\d+$/, 'El código debe ser puramente numérico'),
 });
 
 type VerifyFormData = z.infer<typeof verifySchema>;
@@ -99,24 +100,21 @@ export default function VerifyScreen() {
               )}
             />
 
+            <Text style={[styles.label, { color: theme.colors.onSurfaceVariant }]}>
+              Código de Verificación
+            </Text>
             <Controller
               control={control}
               name="token"
-              render={({ field: { onChange, onBlur, value } }) => (
+              render={({ field: { onChange, value } }) => (
                 <View style={styles.inputContainer}>
-                  <TextInput
-                    mode="outlined"
-                    label="Código de Verificación (OTP)"
-                    onBlur={onBlur}
-                    onChangeText={onChange}
+                  <OtpInput
                     value={value}
-                    autoCapitalize="none"
+                    onChange={onChange}
                     error={!!errors.token}
-                    left={<TextInput.Icon icon="key" />}
-                    activeOutlineColor={theme.colors.primary}
                   />
                   {errors.token && (
-                    <HelperText type="error" visible={true}>
+                    <HelperText type="error" visible={true} style={styles.errorText}>
                       {errors.token.message}
                     </HelperText>
                   )}
@@ -182,6 +180,15 @@ const styles = StyleSheet.create({
   },
   inputContainer: {
     marginBottom: 4,
+  },
+  label: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  errorText: {
+    textAlign: 'center',
   },
   button: {
     marginTop: 12,
